@@ -53,10 +53,20 @@ class InitProductTests(unittest.TestCase):
       config = (product_root / 'client/config/app.yaml').read_text(encoding='utf-8')
       self.assertIn('name: focus-timer', config)
       self.assertIn('server_mode: reserved', config)
+      self.assertIn('soft_update_window: 3', config)
+      self.assertIn('check_on_launch: true', config)
 
       prd = (product_root / 'docs/03-prd-final.md').read_text(encoding='utf-8')
       self.assertIn('Focus Timer', prd)
       self.assertIn('focus-timer', prd)
+
+      bootstrap = (product_root / 'client/lib/app/bootstrap.dart').read_text(encoding='utf-8')
+      self.assertIn('UpgradeDecision', bootstrap)
+      self.assertIn('latestBuildNumber', bootstrap)
+
+      app_shell = (product_root / 'client/lib/app/app.dart').read_text(encoding='utf-8')
+      self.assertIn('Upgrade Required', app_shell)
+      self.assertIn('Update Available', app_shell)
 
       server_readme = (product_root / 'server/README.md').read_text(encoding='utf-8')
       self.assertIn('shared account', server_readme.lower())

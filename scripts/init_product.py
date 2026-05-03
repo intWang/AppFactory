@@ -96,6 +96,13 @@ platforms:
   - web
 output_dir: build/outputs
 server_mode: reserved
+upgrade:
+  check_on_launch: true
+  soft_update_window: 3
+  current_version: 0.1.0
+  current_build_number: 1
+  latest_version: 0.1.0
+  latest_build_number: 1
 """
 
 
@@ -128,32 +135,53 @@ class AppServices {{
   const AppServices({{
     required this.config,
     required this.registry,
+    required this.upgradeDecision,
   }});
 
   final AppConfig config;
   final CapabilityRegistry registry;
+  final UpgradeDecision upgradeDecision;
 }}
 
 Future<AppServices> bootstrapApp() async {{
   final CapabilityRegistry registry = CapabilityRegistry();
+  const GrowthEntryPoints growthEntryPoints = GrowthEntryPoints();
   registry.register<AppLogger>(AppLogger());
   registry.register<ErrorReporter>(ErrorReporter());
-  registry.register<GrowthEntryPoints>(const GrowthEntryPoints());
+  registry.register<GrowthEntryPoints>(growthEntryPoints);
 
-  const AppConfig config = AppConfig(appName: '{app_name}');
+  const AppConfig config = AppConfig(
+    appName: '{app_name}',
+    currentVersion: '0.1.0',
+    currentBuildNumber: 1,
+    latestVersion: '0.1.0',
+    latestBuildNumber: 1,
+  );
+  final UpgradeDecision upgradeDecision = growthEntryPoints.upgradePolicy.evaluate(
+    currentVersion: config.currentVersion,
+    currentBuildNumber: config.currentBuildNumber,
+    latestVersion: config.latestVersion,
+    latestBuildNumber: config.latestBuildNumber,
+    upgradeUrl: config.upgradeUrl,
+  );
+  registry.register<UpgradeDecision>(upgradeDecision);
+
   return AppServices(
     config: config,
     registry: registry,
+    upgradeDecision: upgradeDecision,
   );
 }}
 """
 
 
 def build_app(package_name: str, class_name: str, home_title: str) -> str:
-  return f"""import 'package:app_factory_ui/app_factory_ui.dart';
+  return f"""import 'package:app_factory_growth/app_factory_growth.dart';
+import 'package:app_factory_ui/app_factory_ui.dart';
 import 'package:{package_name}/app/bootstrap.dart';
 import 'package:{package_name}/features/home/home_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class {class_name} extends StatelessWidget {{
   const {class_name}({{
@@ -168,8 +196,79 @@ class {class_name} extends StatelessWidget {{
     return MaterialApp(
       title: services.config.appName,
       theme: buildAppTheme(),
-      home: const HomePage(),
+      home: _UpgradeGate(
+        upgradeDecision: services.upgradeDecision,
+        child: const HomePage(),
+      ),
     );
+  }}
+}}
+
+class _UpgradeGate extends StatefulWidget {{
+  const _UpgradeGate({{
+    required this.upgradeDecision,
+    required this.child,
+  }});
+
+  final UpgradeDecision upgradeDecision;
+  final Widget child;
+
+  @override
+  State<_UpgradeGate> createState() => _UpgradeGateState();
+}}
+
+class _UpgradeGateState extends State<_UpgradeGate> {{
+  bool _dialogShown = false;
+
+  @override
+  void didChangeDependencies() {{
+    super.didChangeDependencies();
+    if (_dialogShown || !widget.upgradeDecision.shouldPrompt) {{
+      return;
+    }}
+
+    _dialogShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {{
+      if (!mounted) {{
+        return;
+      }}
+
+      showDialog<void>(
+        context: context,
+        barrierDismissible: !widget.upgradeDecision.isForced,
+        builder: (BuildContext context) {{
+          return AlertDialog(
+            title: Text(widget.upgradeDecision.isForced ? 'Upgrade Required' : 'Update Available'),
+            content: Text(
+              widget.upgradeDecision.isForced
+                  ? 'Your app version is too old. Please upgrade now to continue using the app.'
+                  : 'A newer app version is available. Upgrade now for the latest fixes and features.',
+            ),
+            actions: <Widget>[
+              if (!widget.upgradeDecision.isForced)
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Later'),
+                ),
+              FilledButton(
+                onPressed: () {{
+                  Navigator.of(context).pop();
+                  if (widget.upgradeDecision.isForced) {{
+                    SystemNavigator.pop();
+                  }}
+                }},
+                child: Text(widget.upgradeDecision.isForced ? 'Exit and Upgrade' : 'Upgrade'),
+              ),
+            ],
+          );
+        }},
+      );
+    }});
+  }}
+
+  @override
+  Widget build(BuildContext context) {{
+    return widget.child;
   }}
 }}
 """
@@ -216,6 +315,7 @@ void main() {{
 
     expect(services.registry, isNotNull);
     expect(services.config.appName, '{app_name}');
+    expect(services.upgradeDecision.shouldPrompt, isFalse);
   }});
 }}
 """

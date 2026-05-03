@@ -18,6 +18,7 @@ Verify that the delivered app matches the PRD and architecture, and archive clea
 - Check that the product does not import another product directly.
 - Check that tests, docs, and build outputs stay inside the owning product boundary.
 - Check design consistency against `products/<product-slug>/docs/02-ux-spec.md`, `products/<product-slug>/design/figma-link.md`, and exported design screens.
+- Verify launch upgrade checks, including optional upgrade prompts and forced-upgrade blocking when the latest build is more than 3 builds ahead.
 - Reject work that violates repository isolation or artifact ownership rules.
 
 ## Required Outputs

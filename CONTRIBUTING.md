@@ -9,6 +9,9 @@ AppFactory is a multi-product monorepo. The repository hosts multiple independen
 - Shared account management and payment or entitlement logic should prefer shared services instead of product-specific reimplementation.
 - Product-specific server logic is optional and must be decided by PM and AM based on the product's business requirements, data model, and security needs.
 - If a product does not need a dedicated server yet, it should still keep room in its structure for a future `server/` directory.
+- App shell launch must run a shared upgrade check before normal product use.
+- When a newer release exists, the app should prompt the user to upgrade.
+- When the latest released build is more than 3 builds ahead of the installed build, the app must force upgrade and exit instead of continuing.
 
 ## Repository Layers
 
@@ -100,6 +103,7 @@ products/<product-slug>/
 - Decide whether new code belongs in `packages/`, `products/<product-slug>/`, or the product integration layer.
 - Decide whether the product needs a dedicated `server/` now or only a reserved server boundary for later.
 - Keep shared account, payment, and entitlement capabilities out of ad-hoc product server implementations when a shared service can own them.
+- Keep upgrade-check policy in shared growth capabilities instead of redefining version rules per product.
 - Reject abstractions that carry product-specific semantics into public packages.
 - Protect cross-product isolation and dependency direction.
 
@@ -111,12 +115,14 @@ products/<product-slug>/
 - Prevent cross-product imports and misplaced outputs.
 - Keep build, test, and doc artifacts inside the owning product boundary.
 - Implement UI against UD's Figma and exported design references, not from PRD alone.
+- Wire the shared upgrade capability into app-shell launch when architecture requires upgrade governance.
 
 ### QA
 
 - Verify repository-boundary compliance in addition to feature correctness.
 - Check import boundaries, test placement, doc placement, and build-output placement.
 - Check design consistency against UD exports and UX specifications.
+- Verify optional upgrade prompts and forced-upgrade blocking behavior when version policy applies.
 - Reject work that violates product isolation or artifact ownership rules.
 
 ## Non-Compliant Examples
@@ -129,3 +135,4 @@ The following are not allowed:
 - Build outputs written outside the product's own output path.
 - Product docs, design assets, or tests stored outside the product directory.
 - Product-specific account or payment services created without first checking whether they belong in a shared service.
+- Product-specific version-gap rules or skipped launch upgrade checks without AM approval.

@@ -24,6 +24,7 @@ The workflow is designed to run mostly automatically. The orchestrator skill adv
 - Produce structured documents that can be handed cleanly between roles.
 - Generate a minimal Flutter app that compiles and can be tested.
 - Reserve or implement server capability when the product needs shared accounts, payment, entitlements, or secure business rules.
+- Standardize launch upgrade checks so products can prompt for updates and force upgrade when the released build is more than 3 versions ahead.
 - Reuse platform capabilities through pluggable shared modules.
 - Preserve clear safety boundaries around shared modules, business modules, credentials, and monetization touchpoints.
 - Archive test evidence and project memory for reuse across future projects.
@@ -174,6 +175,7 @@ V1 can start lightweight but the interface should exist from the beginning.
 Shared growth and monetization placeholders:
 
 - upgrade prompts
+- forced upgrade gates
 - announcement modal
 - rating prompt
 - feedback entry
@@ -181,6 +183,8 @@ Shared growth and monetization placeholders:
 - campaign entry points
 
 The goal is not a heavy monetization implementation in V1. The goal is to reserve standard attachment points so PM can define growth opportunities without each project inventing them from scratch.
+
+Launch upgrade behavior should be centralized here as a shared rule. App Shell should check the current build on startup, show an upgrade prompt when a newer release exists, and force upgrade when the latest build is more than 3 builds ahead.
 
 ### 7.4 Toolkit UI
 

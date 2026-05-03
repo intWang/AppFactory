@@ -1,6 +1,12 @@
-class AppConfig {
-  const AppConfig({
-    required this.appName,
+enum UpgradePromptMode {
+  none,
+  optional,
+  forced,
+}
+
+class UpgradeDecision {
+  const UpgradeDecision({
+    required this.mode,
     required this.currentVersion,
     required this.currentBuildNumber,
     required this.latestVersion,
@@ -8,10 +14,13 @@ class AppConfig {
     this.upgradeUrl,
   });
 
-  final String appName;
+  final UpgradePromptMode mode;
   final String currentVersion;
   final int currentBuildNumber;
   final String latestVersion;
   final int latestBuildNumber;
   final String? upgradeUrl;
+
+  bool get shouldPrompt => mode != UpgradePromptMode.none;
+  bool get isForced => mode == UpgradePromptMode.forced;
 }

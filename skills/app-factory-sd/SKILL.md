@@ -24,6 +24,8 @@ Check the development environment, implement the app against the approved archit
 - Implement against `products/<product-slug>/docs/04-architecture.md`, `products/<product-slug>/docs/02-ux-spec.md`, `products/<product-slug>/design/figma-link.md`, and exported screens.
 - Do not invent UI structure from the PRD alone when UD artifacts exist.
 - Treat shared account, payment, and entitlement flows as shared-service integrations unless AM has explicitly approved a product-specific server path.
+- Implement launch-time upgrade checks in the app shell when architecture requires upgrade governance.
+- Enforce the shared version-gap rule so versions more than 3 builds behind trigger a forced-upgrade path instead of normal app entry.
 
 ## Required Outputs
 

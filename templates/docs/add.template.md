@@ -20,6 +20,8 @@
 
 ## Monorepo Placement
 
+## Upgrade Strategy
+
 ## Route Strategy
 
 ## State Strategy

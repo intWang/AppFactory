@@ -8,13 +8,24 @@ Use this template under `products/<product-slug>/` with these sibling folders:
 
 ```text
 products/<product-slug>/
-  lib/
-  test/
-  config/
+  client/
+    lib/
+    test/
+    config/
+    assets/
+  server/
+    src/
+    tests/
+    config/
+    deploy/
   docs/
   design/
   build/outputs/
 ```
+
+## Launch Upgrade Rule
+
+The product shell should run a shared launch upgrade check. When a newer build exists, show an upgrade prompt. When the latest released build is more than 3 builds ahead, trigger a forced-upgrade path instead of normal app entry.
 
 ## Required Product Docs
 

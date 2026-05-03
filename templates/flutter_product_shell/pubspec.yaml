@@ -9,6 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  app_factory_foundation:
+    path: ../../packages/app_factory_foundation
+  app_factory_growth:
+    path: ../../packages/app_factory_growth
 
 dev_dependencies:
   flutter_test:

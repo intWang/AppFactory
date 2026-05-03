@@ -12,6 +12,8 @@
 
 ## TDD Strategy
 
+## Launch Upgrade Check
+
 ## Build Commands
 
 ## Artifact Output
