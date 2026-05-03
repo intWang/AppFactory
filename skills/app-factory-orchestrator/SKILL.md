@@ -54,6 +54,12 @@ Create or copy these baseline product artifacts:
 
 Use `templates/docs/` for document content and `templates/flutter_product_shell/` for the product shell baseline.
 
+Preferred initialization command:
+
+```bash
+python3 scripts/init_product.py <project-slug> "<App Name>"
+```
+
 ## Initialization Checks
 
 Do not advance beyond intake until:
