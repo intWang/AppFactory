@@ -315,3 +315,103 @@ func TestMutatingReleaseActionsConflictWhenLocked(t *testing.T) {
 		t.Fatal("timed out waiting for first request")
 	}
 }
+
+func TestCurrentReleaseOperationVisibleWhileRunning(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/switches" || r.Method != http.MethodPost {
+			t.Fatalf("unexpected call %s %s", r.Method, r.URL.Path)
+		}
+		entered <- struct{}{}
+		<-release
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"target_type":"client","latest_version":"26.2.20.10"}`))
+	}))
+	defer upgradeService.Close()
+
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
+
+	done := make(chan struct{}, 1)
+	go func() {
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"/v1/releases/switch",
+			bytes.NewBufferString(`{"product_slug":"shared-client","target_type":"client","to_version_id":"rv-1","operator":"service-manager"}`),
+		)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		done <- struct{}{}
+	}()
+
+	<-entered
+	statusReq := httptest.NewRequest(http.MethodGet, "/v1/releases/operations/current", nil)
+	statusRec := httptest.NewRecorder()
+	router.ServeHTTP(statusRec, statusReq)
+
+	if statusRec.Code != http.StatusOK {
+		t.Fatalf("expected current operation status 200, got %d body=%s", statusRec.Code, statusRec.Body.String())
+	}
+	if !strings.Contains(statusRec.Body.String(), "\"operation\":\"switch\"") || !strings.Contains(statusRec.Body.String(), "\"status\":\"running\"") {
+		t.Fatalf("expected running switch operation in current status, got %s", statusRec.Body.String())
+	}
+
+	close(release)
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for switch request to finish")
+	}
+}
+
+func TestReleaseOperationHistoryRecordsCompletedPromote(t *testing.T) {
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/deployments" && r.Method == http.MethodPost:
+			_, _ = w.Write([]byte(`{"id":"deployment-3","environment":"compose-promote","status":"deployed"}`))
+		case r.URL.Path == "/v1/switches" && r.Method == http.MethodPost:
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"target_type":"client","latest_version":"26.2.20.11"}`))
+		default:
+			t.Fatalf("unexpected call %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer upgradeService.Close()
+
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
+
+	promoteReq := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/releases/promote",
+		bytes.NewBufferString(`{"product_slug":"shared-client","target_type":"client","target_version_id":"release-3","environment":"compose-promote","operator":"service-manager"}`),
+	)
+	promoteReq.Header.Set("Content-Type", "application/json")
+	promoteRec := httptest.NewRecorder()
+	router.ServeHTTP(promoteRec, promoteReq)
+
+	if promoteRec.Code != http.StatusCreated {
+		t.Fatalf("expected promote status 201, got %d body=%s", promoteRec.Code, promoteRec.Body.String())
+	}
+
+	historyReq := httptest.NewRequest(http.MethodGet, "/v1/releases/operations/history", nil)
+	historyRec := httptest.NewRecorder()
+	router.ServeHTTP(historyRec, historyReq)
+
+	if historyRec.Code != http.StatusOK {
+		t.Fatalf("expected operation history status 200, got %d body=%s", historyRec.Code, historyRec.Body.String())
+	}
+	if !strings.Contains(historyRec.Body.String(), "\"operation\":\"promote\"") || !strings.Contains(historyRec.Body.String(), "\"status\":\"completed\"") {
+		t.Fatalf("expected completed promote operation in history, got %s", historyRec.Body.String())
+	}
+	if strings.Contains(historyRec.Body.String(), "\"status\":\"running\"") {
+		t.Fatalf("expected completed promote history without stale running record, got %s", historyRec.Body.String())
+	}
+}

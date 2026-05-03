@@ -32,6 +32,25 @@ type operationLocker struct {
 	locks map[string]bool
 }
 
+type releaseOperationStatus struct {
+	Operation       string    `json:"operation"`
+	ProductSlug     string    `json:"product_slug"`
+	TargetType      string    `json:"target_type"`
+	TargetVersionID string    `json:"target_version_id,omitempty"`
+	Environment     string    `json:"environment,omitempty"`
+	Operator        string    `json:"operator,omitempty"`
+	Status          string    `json:"status"`
+	StartedAt       time.Time `json:"started_at"`
+	CompletedAt     time.Time `json:"completed_at,omitempty"`
+	Error           string    `json:"error,omitempty"`
+}
+
+type operationTracker struct {
+	mu      sync.Mutex
+	current map[string]releaseOperationStatus
+	history []releaseOperationStatus
+}
+
 type releasePromoteRequest struct {
 	ProductSlug     string `json:"product_slug"`
 	TargetType      string `json:"target_type"`
@@ -55,6 +74,7 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 	mux := http.NewServeMux()
 	httpClient := &http.Client{Timeout: 2 * time.Second}
 	locker := &operationLocker{locks: map[string]bool{}}
+	tracker := &operationTracker{current: map[string]releaseOperationStatus{}}
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, sharedhealth.Snapshot{
@@ -159,6 +179,12 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 	mux.HandleFunc("/v1/releases/targets", func(w http.ResponseWriter, r *http.Request) {
 		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/targets/active")
 	})
+	mux.HandleFunc("/v1/releases/operations/current", func(w http.ResponseWriter, r *http.Request) {
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"operations": tracker.Current()})
+	})
+	mux.HandleFunc("/v1/releases/operations/history", func(w http.ResponseWriter, r *http.Request) {
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"operations": tracker.History()})
+	})
 	mux.HandleFunc("/v1/releases/history", func(w http.ResponseWriter, r *http.Request) {
 		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/releases")
 	})
@@ -172,6 +198,19 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 				return "", err
 			}
 			return releaseLockKey(req.ProductSlug, req.TargetType), nil
+		}, tracker, func(payload []byte) releaseOperationStatus {
+			var req struct {
+				ProductSlug  string `json:"product_slug"`
+				TargetType   string `json:"target_type"`
+				VersionLabel string `json:"version_label"`
+			}
+			_ = json.Unmarshal(payload, &req)
+			return releaseOperationStatus{
+				Operation:   "create-release",
+				ProductSlug: req.ProductSlug,
+				TargetType:  req.TargetType,
+				Status:      "running",
+			}
 		})
 	})
 	mux.HandleFunc("/v1/deployments/history", func(w http.ResponseWriter, r *http.Request) {
@@ -186,6 +225,18 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 				return "", err
 			}
 			return "deployment:" + req.TargetVersionID, nil
+		}, tracker, func(payload []byte) releaseOperationStatus {
+			var req struct {
+				TargetVersionID string `json:"target_version_id"`
+				Environment     string `json:"environment"`
+			}
+			_ = json.Unmarshal(payload, &req)
+			return releaseOperationStatus{
+				Operation:       "create-deployment",
+				TargetVersionID: req.TargetVersionID,
+				Environment:     req.Environment,
+				Status:          "running",
+			}
 		})
 	})
 	mux.HandleFunc("/v1/releases/switches/history", func(w http.ResponseWriter, r *http.Request) {
@@ -204,6 +255,22 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 				return "", err
 			}
 			return releaseLockKey(req.ProductSlug, req.TargetType), nil
+		}, tracker, func(payload []byte) releaseOperationStatus {
+			var req struct {
+				ProductSlug     string `json:"product_slug"`
+				TargetType      string `json:"target_type"`
+				TargetVersionID string `json:"to_version_id"`
+				Operator        string `json:"operator"`
+			}
+			_ = json.Unmarshal(payload, &req)
+			return releaseOperationStatus{
+				Operation:       "switch",
+				ProductSlug:     req.ProductSlug,
+				TargetType:      req.TargetType,
+				TargetVersionID: req.TargetVersionID,
+				Operator:        req.Operator,
+				Status:          "running",
+			}
 		})
 	})
 	mux.HandleFunc("/v1/releases/rollback", func(w http.ResponseWriter, r *http.Request) {
@@ -216,6 +283,22 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 				return "", err
 			}
 			return releaseLockKey(req.ProductSlug, req.TargetType), nil
+		}, tracker, func(payload []byte) releaseOperationStatus {
+			var req struct {
+				ProductSlug     string `json:"product_slug"`
+				TargetType      string `json:"target_type"`
+				TargetVersionID string `json:"rolled_back_to_version_id"`
+				Operator        string `json:"operator"`
+			}
+			_ = json.Unmarshal(payload, &req)
+			return releaseOperationStatus{
+				Operation:       "rollback",
+				ProductSlug:     req.ProductSlug,
+				TargetType:      req.TargetType,
+				TargetVersionID: req.TargetVersionID,
+				Operator:        req.Operator,
+				Status:          "running",
+			}
 		})
 	})
 	mux.HandleFunc("/v1/releases/promote", func(w http.ResponseWriter, r *http.Request) {
@@ -239,6 +322,17 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 			return
 		}
 		defer locker.Release(lockKey)
+		status := releaseOperationStatus{
+			Operation:       "promote",
+			ProductSlug:     req.ProductSlug,
+			TargetType:      req.TargetType,
+			TargetVersionID: req.TargetVersionID,
+			Environment:     req.Environment,
+			Operator:        req.Operator,
+			Status:          "running",
+			StartedAt:       time.Now().UTC(),
+		}
+		tracker.Start(lockKey, status)
 
 		deploymentPayload, _ := json.Marshal(map[string]any{
 			"target_version_id": req.TargetVersionID,
@@ -246,6 +340,10 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 			"status":            "deployed",
 		})
 		if _, _, err := performUpgradeRequest(r, manager, httpClient, http.MethodPost, "/v1/deployments", deploymentPayload); err != nil {
+			status.Status = "failed"
+			status.CompletedAt = time.Now().UTC()
+			status.Error = err.Error()
+			tracker.Finish(lockKey, status)
 			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 			return
 		}
@@ -255,13 +353,38 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 			"to_version_id": req.TargetVersionID,
 			"operator":      req.Operator,
 		})
-		status, responseBody, err := performUpgradeRequest(r, manager, httpClient, http.MethodPost, "/v1/switches", switchPayload)
+		httpStatus, responseBody, err := performUpgradeRequest(r, manager, httpClient, http.MethodPost, "/v1/switches", switchPayload)
 		if err != nil {
+			failedStatus := releaseOperationStatus{
+				Operation:       "promote",
+				ProductSlug:     req.ProductSlug,
+				TargetType:      req.TargetType,
+				TargetVersionID: req.TargetVersionID,
+				Environment:     req.Environment,
+				Operator:        req.Operator,
+				Status:          "failed",
+				StartedAt:       time.Now().UTC(),
+				CompletedAt:     time.Now().UTC(),
+				Error:           err.Error(),
+			}
+			tracker.Finish(lockKey, failedStatus)
 			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 			return
 		}
+		completedStatus := releaseOperationStatus{
+			Operation:       "promote",
+			ProductSlug:     req.ProductSlug,
+			TargetType:      req.TargetType,
+			TargetVersionID: req.TargetVersionID,
+			Environment:     req.Environment,
+			Operator:        req.Operator,
+			Status:          "completed",
+			StartedAt:       time.Now().UTC(),
+			CompletedAt:     time.Now().UTC(),
+		}
+		tracker.Finish(lockKey, completedStatus)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
+		w.WriteHeader(httpStatus)
 		_, _ = w.Write(responseBody)
 	})
 
@@ -343,6 +466,8 @@ func proxyLockedUpgradeRequest(
 	expectedMethod string,
 	path string,
 	lockKeyFn func([]byte) (string, error),
+	tracker *operationTracker,
+	statusFn func([]byte) releaseOperationStatus,
 ) {
 	if r.Method != expectedMethod {
 		httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
@@ -363,14 +488,24 @@ func proxyLockedUpgradeRequest(
 		return
 	}
 	defer locker.Release(lockKey)
+	status := statusFn(payload)
+	status.StartedAt = time.Now().UTC()
+	tracker.Start(lockKey, status)
+	defer func() {
+		tracker.Finish(lockKey, status)
+	}()
 
-	status, responseBody, err := performUpgradeRequest(r, manager, httpClient, expectedMethod, path, payload)
+	httpStatus, responseBody, err := performUpgradeRequest(r, manager, httpClient, expectedMethod, path, payload)
 	if err != nil {
+		status.Status = "failed"
+		status.Error = err.Error()
 		httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return
 	}
+	status.Status = "completed"
+	status.CompletedAt = time.Now().UTC()
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
+	w.WriteHeader(httpStatus)
 	_, _ = w.Write(responseBody)
 }
 
@@ -428,6 +563,43 @@ func (l *operationLocker) Release(key string) {
 
 func releaseLockKey(productSlug, targetType string) string {
 	return productSlug + ":" + targetType
+}
+
+func (t *operationTracker) Start(key string, status releaseOperationStatus) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.current[key] = status
+}
+
+func (t *operationTracker) Finish(key string, status releaseOperationStatus) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if status.CompletedAt.IsZero() {
+		status.CompletedAt = time.Now().UTC()
+	}
+	delete(t.current, key)
+	t.history = append([]releaseOperationStatus{status}, t.history...)
+	if len(t.history) > 20 {
+		t.history = t.history[:20]
+	}
+}
+
+func (t *operationTracker) Current() []releaseOperationStatus {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	ops := make([]releaseOperationStatus, 0, len(t.current))
+	for _, status := range t.current {
+		ops = append(ops, status)
+	}
+	return ops
+}
+
+func (t *operationTracker) History() []releaseOperationStatus {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	ops := make([]releaseOperationStatus, len(t.history))
+	copy(ops, t.history)
+	return ops
 }
 
 func findService(services []runtime.ManagedService, name string) (runtime.ManagedService, bool) {

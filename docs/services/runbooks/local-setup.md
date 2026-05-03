@@ -72,6 +72,8 @@ curl -sS -X POST http://localhost:18082/v1/rollbacks \
 Service-manager release control endpoints:
 
 - `GET http://localhost:18080/v1/releases/targets`
+- `GET http://localhost:18080/v1/releases/operations/current`
+- `GET http://localhost:18080/v1/releases/operations/history`
 - `GET http://localhost:18080/v1/releases/history`
 - `GET http://localhost:18080/v1/deployments/history`
 - `GET http://localhost:18080/v1/releases/switches/history`
