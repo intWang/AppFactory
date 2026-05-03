@@ -3,17 +3,17 @@
 ## Immediate Follow-Ups
 
 - Define Redis usage boundaries to avoid turning cache into system-of-record.
-- Add service-manager state persistence beyond process memory.
-- Add release-target switching through `service-manager`, not just directly through `upgrade-service`.
-- Add deploy/switch audit queries for release history views.
+- Persist in-flight `current` release operations across service-manager restarts instead of only persisting completed history.
+- Add explicit operation IDs to HTTP responses so RM/QA can trace one release action across create, promote, switch, and rollback.
+- Add release-operation cleanup and retention policy for the `service_manager_operations` table.
 
 ## Next Technical Slice
 
 - Add account-service password hashing and session issuance.
 - Add provider mock adapters and callback contracts for social-login providers.
-- Add upgrade-service release history, switch history, and rollback history query APIs.
-- Add service-manager release orchestration endpoints that call `upgrade-service`.
-- Add service-manager lock handling for conflicting start/stop/restart/switch actions.
+- Add service-manager orchestration endpoints for rollback plans and promote-with-validation flows.
+- Add structured error codes and failure reasons for release orchestration APIs.
+- Add operation-state queries filtered by `product_slug`, `target_type`, and time range.
 
 ## Account-Service Follow-Ups
 
@@ -26,14 +26,16 @@
 
 - Add explicit build-number governance separate from display-version strings.
 - Add release-channel awareness and staged rollout strategy.
-- Add read APIs for deployments, switch events, and rollback events.
+- Add query filters and pagination for releases, deployments, switch events, and rollback events.
+- Add release validation rules before switch or promote, such as required deployment status and environment checks.
 
 ## Service-Manager Follow-Ups
 
-- Add version-switch actions that coordinate with `upgrade-service`.
 - Add profile switching persistence and target visibility snapshots.
-- Add local hot-switch contract and lock handling.
+- Add durable recovery semantics for interrupted operations after restart.
+- Add lock ownership metadata, timeout handling, and forced-unlock policy.
 - Add Compose and native-mode parity checks in automated tests.
+- Add RM-facing release workflow endpoints and audit exports.
 
 ## Future Product Work
 
