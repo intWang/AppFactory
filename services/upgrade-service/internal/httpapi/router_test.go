@@ -107,4 +107,40 @@ func TestReleaseLifecycleEndpoints(t *testing.T) {
 	if !strings.Contains(rollbackRec.Body.String(), "\"latest_version\":\"26.2.20.04\"") {
 		t.Fatalf("expected rollback target to latest version 26.2.20.04, got %s", rollbackRec.Body.String())
 	}
+
+	releasesRec := httptest.NewRecorder()
+	router.ServeHTTP(releasesRec, httptest.NewRequest(http.MethodGet, "/v1/releases", nil))
+	if releasesRec.Code != http.StatusOK {
+		t.Fatalf("expected release history status 200, got %d body=%s", releasesRec.Code, releasesRec.Body.String())
+	}
+	if !strings.Contains(releasesRec.Body.String(), "\"version_label\":\"26.2.20.05\"") {
+		t.Fatalf("expected release history to include created version, got %s", releasesRec.Body.String())
+	}
+
+	deploymentsHistoryRec := httptest.NewRecorder()
+	router.ServeHTTP(deploymentsHistoryRec, httptest.NewRequest(http.MethodGet, "/v1/deployments", nil))
+	if deploymentsHistoryRec.Code != http.StatusOK {
+		t.Fatalf("expected deployment history status 200, got %d body=%s", deploymentsHistoryRec.Code, deploymentsHistoryRec.Body.String())
+	}
+	if !strings.Contains(deploymentsHistoryRec.Body.String(), "\"environment\":\"local\"") {
+		t.Fatalf("expected deployment history to include local environment, got %s", deploymentsHistoryRec.Body.String())
+	}
+
+	switchHistoryRec := httptest.NewRecorder()
+	router.ServeHTTP(switchHistoryRec, httptest.NewRequest(http.MethodGet, "/v1/switches", nil))
+	if switchHistoryRec.Code != http.StatusOK {
+		t.Fatalf("expected switch history status 200, got %d body=%s", switchHistoryRec.Code, switchHistoryRec.Body.String())
+	}
+	if !strings.Contains(switchHistoryRec.Body.String(), "\"to_version_id\":\""+release.ID+"\"") {
+		t.Fatalf("expected switch history to include switched version id, got %s", switchHistoryRec.Body.String())
+	}
+
+	rollbackHistoryRec := httptest.NewRecorder()
+	router.ServeHTTP(rollbackHistoryRec, httptest.NewRequest(http.MethodGet, "/v1/rollbacks", nil))
+	if rollbackHistoryRec.Code != http.StatusOK {
+		t.Fatalf("expected rollback history status 200, got %d body=%s", rollbackHistoryRec.Code, rollbackHistoryRec.Body.String())
+	}
+	if !strings.Contains(rollbackHistoryRec.Body.String(), "\"rolled_back_to_version_id\":\"release-client-4\"") {
+		t.Fatalf("expected rollback history to include rollback target, got %s", rollbackHistoryRec.Body.String())
+	}
 }

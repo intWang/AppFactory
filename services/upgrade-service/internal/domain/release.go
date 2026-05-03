@@ -75,6 +75,24 @@ type RollbackTargetRequest struct {
 	Operator              string `json:"operator"`
 }
 
+type SwitchEvent struct {
+	ID            string `json:"id"`
+	ProductSlug   string `json:"product_slug"`
+	TargetType    string `json:"target_type"`
+	FromVersionID string `json:"from_version_id,omitempty"`
+	ToVersionID   string `json:"to_version_id"`
+	Operator      string `json:"operator"`
+}
+
+type RollbackEvent struct {
+	ID                    string `json:"id"`
+	ProductSlug           string `json:"product_slug"`
+	TargetType            string `json:"target_type"`
+	RolledBackFromVersion string `json:"rolled_back_from_version_id"`
+	RolledBackToVersion   string `json:"rolled_back_to_version_id"`
+	Operator              string `json:"operator"`
+}
+
 type TargetBundle struct {
 	Client  VersionTarget `json:"client"`
 	Service VersionTarget `json:"service"`

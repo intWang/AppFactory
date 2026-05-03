@@ -111,3 +111,32 @@ func TestReleaseTargetsProxyUsesUpgradeService(t *testing.T) {
 		t.Fatalf("expected proxied active target response, got %s", rec.Body.String())
 	}
 }
+
+func TestReleaseHistoryProxyUsesUpgradeService(t *testing.T) {
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/releases" {
+			t.Fatalf("expected /v1/releases, got %s", r.URL.Path)
+		}
+		if r.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", r.Method)
+		}
+		_, _ = w.Write([]byte(`{"releases":[{"version_label":"26.2.20.06"}]}`))
+	}))
+	defer upgradeService.Close()
+
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/releases/history", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected proxied success status, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "\"version_label\":\"26.2.20.06\"") {
+		t.Fatalf("expected proxied release history response, got %s", rec.Body.String())
+	}
+}

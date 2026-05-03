@@ -77,6 +77,15 @@ func NewRouterWithRepository(store storage.Repository) http.Handler {
 		})
 	})
 	mux.HandleFunc("/v1/releases", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			releases, err := store.ListReleases(r.Context())
+			if err != nil {
+				httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"releases": releases})
+			return
+		}
 		if r.Method != http.MethodPost {
 			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 			return
@@ -94,6 +103,15 @@ func NewRouterWithRepository(store storage.Repository) http.Handler {
 		httpx.WriteJSON(w, http.StatusCreated, release)
 	})
 	mux.HandleFunc("/v1/deployments", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			deployments, err := store.ListDeployments(r.Context())
+			if err != nil {
+				httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"deployments": deployments})
+			return
+		}
 		if r.Method != http.MethodPost {
 			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 			return
@@ -111,6 +129,15 @@ func NewRouterWithRepository(store storage.Repository) http.Handler {
 		httpx.WriteJSON(w, http.StatusCreated, deployment)
 	})
 	mux.HandleFunc("/v1/switches", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			events, err := store.ListSwitchEvents(r.Context())
+			if err != nil {
+				httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"switches": events})
+			return
+		}
 		if r.Method != http.MethodPost {
 			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 			return
@@ -128,6 +155,15 @@ func NewRouterWithRepository(store storage.Repository) http.Handler {
 		httpx.WriteJSON(w, http.StatusCreated, target)
 	})
 	mux.HandleFunc("/v1/rollbacks", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			events, err := store.ListRollbackEvents(r.Context())
+			if err != nil {
+				httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"rollbacks": events})
+			return
+		}
 		if r.Method != http.MethodPost {
 			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 			return

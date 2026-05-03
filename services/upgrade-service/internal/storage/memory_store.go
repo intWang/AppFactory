@@ -13,6 +13,10 @@ type MemoryStore struct {
 	Releases      map[string]domain.ReleaseVersion
 	Deployments   map[string]domain.DeploymentRecord
 	ActiveIDs     map[string]string
+	ReleaseOrder  []string
+	DeploymentIDs []string
+	SwitchEvents  []domain.SwitchEvent
+	Rollbacks     []domain.RollbackEvent
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -35,9 +39,11 @@ func NewMemoryStore() *MemoryStore {
 			LatestBuild:       3,
 			ForceUpgradeAfter: 3,
 		},
-		Releases:    map[string]domain.ReleaseVersion{},
-		Deployments: map[string]domain.DeploymentRecord{},
-		ActiveIDs:   map[string]string{},
+		Releases:     map[string]domain.ReleaseVersion{},
+		Deployments:  map[string]domain.DeploymentRecord{},
+		ActiveIDs:    map[string]string{},
+		SwitchEvents: []domain.SwitchEvent{},
+		Rollbacks:    []domain.RollbackEvent{},
 	}
 
 	clientRelease := domain.ReleaseVersion{
@@ -59,6 +65,7 @@ func NewMemoryStore() *MemoryStore {
 
 	store.Releases[clientRelease.ID] = clientRelease
 	store.Releases[serviceRelease.ID] = serviceRelease
+	store.ReleaseOrder = append(store.ReleaseOrder, clientRelease.ID, serviceRelease.ID)
 	store.ActiveIDs["client"] = clientRelease.ID
 	store.ActiveIDs["service"] = serviceRelease.ID
 
@@ -72,6 +79,40 @@ func (s *MemoryStore) GetActiveTargets(_ context.Context) (domain.TargetBundle, 
 	}, nil
 }
 
+func (s *MemoryStore) ListReleases(_ context.Context) ([]domain.ReleaseVersion, error) {
+	releases := make([]domain.ReleaseVersion, 0, len(s.ReleaseOrder))
+	for i := len(s.ReleaseOrder) - 1; i >= 0; i-- {
+		id := s.ReleaseOrder[i]
+		releases = append(releases, s.Releases[id])
+	}
+	return releases, nil
+}
+
+func (s *MemoryStore) ListDeployments(_ context.Context) ([]domain.DeploymentRecord, error) {
+	deployments := make([]domain.DeploymentRecord, 0, len(s.DeploymentIDs))
+	for i := len(s.DeploymentIDs) - 1; i >= 0; i-- {
+		id := s.DeploymentIDs[i]
+		deployments = append(deployments, s.Deployments[id])
+	}
+	return deployments, nil
+}
+
+func (s *MemoryStore) ListSwitchEvents(_ context.Context) ([]domain.SwitchEvent, error) {
+	events := make([]domain.SwitchEvent, len(s.SwitchEvents))
+	for i := range s.SwitchEvents {
+		events[i] = s.SwitchEvents[len(s.SwitchEvents)-1-i]
+	}
+	return events, nil
+}
+
+func (s *MemoryStore) ListRollbackEvents(_ context.Context) ([]domain.RollbackEvent, error) {
+	events := make([]domain.RollbackEvent, len(s.Rollbacks))
+	for i := range s.Rollbacks {
+		events[i] = s.Rollbacks[len(s.Rollbacks)-1-i]
+	}
+	return events, nil
+}
+
 func (s *MemoryStore) CreateRelease(_ context.Context, req domain.CreateReleaseRequest) (domain.ReleaseVersion, error) {
 	release := domain.ReleaseVersion{
 		ID:           fmt.Sprintf("release-%s-%d", req.TargetType, req.BuildNumber),
@@ -82,6 +123,7 @@ func (s *MemoryStore) CreateRelease(_ context.Context, req domain.CreateReleaseR
 		UpgradeURL:   req.UpgradeURL,
 	}
 	s.Releases[release.ID] = release
+	s.ReleaseOrder = append(s.ReleaseOrder, release.ID)
 	return release, nil
 }
 
@@ -96,6 +138,7 @@ func (s *MemoryStore) CreateDeployment(_ context.Context, req domain.CreateDeplo
 		Status:          req.Status,
 	}
 	s.Deployments[deployment.ID] = deployment
+	s.DeploymentIDs = append(s.DeploymentIDs, deployment.ID)
 	return deployment, nil
 }
 
@@ -115,7 +158,16 @@ func (s *MemoryStore) SwitchTarget(_ context.Context, req domain.SwitchTargetReq
 	if err != nil {
 		return domain.VersionTarget{}, err
 	}
+	current := s.ActiveIDs[req.TargetType]
 	s.ActiveIDs[req.TargetType] = release.ID
+	s.SwitchEvents = append(s.SwitchEvents, domain.SwitchEvent{
+		ID:            fmt.Sprintf("switch-%d", len(s.SwitchEvents)+1),
+		ProductSlug:   req.ProductSlug,
+		TargetType:    req.TargetType,
+		FromVersionID: current,
+		ToVersionID:   req.ToVersionID,
+		Operator:      req.Operator,
+	})
 	target := s.applyRelease(req.TargetType, release)
 	return target, nil
 }
@@ -125,7 +177,16 @@ func (s *MemoryStore) RollbackTarget(_ context.Context, req domain.RollbackTarge
 	if err != nil {
 		return domain.VersionTarget{}, err
 	}
+	current := s.ActiveIDs[req.TargetType]
 	s.ActiveIDs[req.TargetType] = release.ID
+	s.Rollbacks = append(s.Rollbacks, domain.RollbackEvent{
+		ID:                    fmt.Sprintf("rollback-%d", len(s.Rollbacks)+1),
+		ProductSlug:           req.ProductSlug,
+		TargetType:            req.TargetType,
+		RolledBackFromVersion: current,
+		RolledBackToVersion:   req.RolledBackToVersionID,
+		Operator:              req.Operator,
+	})
 	target := s.applyRelease(req.TargetType, release)
 	return target, nil
 }

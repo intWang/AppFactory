@@ -69,6 +69,16 @@ curl -sS -X POST http://localhost:18082/v1/rollbacks \
   -d '{"product_slug":"shared-client","target_type":"client","rolled_back_to_version_id":"rv-client-2622004","operator":"qa"}'
 ```
 
+Service-manager release control endpoints:
+
+- `GET http://localhost:18080/v1/releases/targets`
+- `GET http://localhost:18080/v1/releases/history`
+- `GET http://localhost:18080/v1/deployments/history`
+- `GET http://localhost:18080/v1/releases/switches/history`
+- `GET http://localhost:18080/v1/releases/rollbacks/history`
+- `POST http://localhost:18080/v1/releases/switch`
+- `POST http://localhost:18080/v1/releases/rollback`
+
 ## Current Blockers
 
 - Go is installed locally at `$HOME/develop/go`.

@@ -59,6 +59,94 @@ func (s *PostgresStore) GetActiveTargets(ctx context.Context) (domain.TargetBund
 	return domain.TargetBundle{Client: client, Service: service}, nil
 }
 
+func (s *PostgresStore) ListReleases(ctx context.Context) ([]domain.ReleaseVersion, error) {
+	rows, err := s.pool.Query(ctx, `
+SELECT id, product_slug, target_type, version_label, build_number, COALESCE(upgrade_url, '')
+FROM release_versions
+ORDER BY created_at DESC
+`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var releases []domain.ReleaseVersion
+	for rows.Next() {
+		var release domain.ReleaseVersion
+		if err := rows.Scan(&release.ID, &release.ProductSlug, &release.TargetType, &release.VersionLabel, &release.BuildNumber, &release.UpgradeURL); err != nil {
+			return nil, err
+		}
+		releases = append(releases, release)
+	}
+	return releases, rows.Err()
+}
+
+func (s *PostgresStore) ListDeployments(ctx context.Context) ([]domain.DeploymentRecord, error) {
+	rows, err := s.pool.Query(ctx, `
+SELECT id, target_version_id, environment, status
+FROM deployment_records
+ORDER BY deployed_at DESC
+`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var deployments []domain.DeploymentRecord
+	for rows.Next() {
+		var deployment domain.DeploymentRecord
+		if err := rows.Scan(&deployment.ID, &deployment.TargetVersionID, &deployment.Environment, &deployment.Status); err != nil {
+			return nil, err
+		}
+		deployments = append(deployments, deployment)
+	}
+	return deployments, rows.Err()
+}
+
+func (s *PostgresStore) ListSwitchEvents(ctx context.Context) ([]domain.SwitchEvent, error) {
+	rows, err := s.pool.Query(ctx, `
+SELECT id, product_slug, target_type, COALESCE(from_version_id, ''), to_version_id, operator
+FROM switch_events
+ORDER BY switched_at DESC
+`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []domain.SwitchEvent
+	for rows.Next() {
+		var event domain.SwitchEvent
+		if err := rows.Scan(&event.ID, &event.ProductSlug, &event.TargetType, &event.FromVersionID, &event.ToVersionID, &event.Operator); err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return events, rows.Err()
+}
+
+func (s *PostgresStore) ListRollbackEvents(ctx context.Context) ([]domain.RollbackEvent, error) {
+	rows, err := s.pool.Query(ctx, `
+SELECT id, product_slug, target_type, rolled_back_from_version_id, rolled_back_to_version_id, operator
+FROM rollback_events
+ORDER BY rolled_back_at DESC
+`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []domain.RollbackEvent
+	for rows.Next() {
+		var event domain.RollbackEvent
+		if err := rows.Scan(&event.ID, &event.ProductSlug, &event.TargetType, &event.RolledBackFromVersion, &event.RolledBackToVersion, &event.Operator); err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return events, rows.Err()
+}
+
 func (s *PostgresStore) CreateRelease(ctx context.Context, req domain.CreateReleaseRequest) (domain.ReleaseVersion, error) {
 	release := domain.ReleaseVersion{
 		ID:           fmt.Sprintf("release-%d", time.Now().UnixNano()),
