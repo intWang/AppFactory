@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "prompt": "AM 的架构已经批准，请按 App Factory SD 的方式推进 Flutter 实现，要求先写 failing tests，再给出 dev plan 和验证命令。",
+    "expected": "遵守 TDD 顺序，先计划再实现，并明确 client/server/packages 边界与 build outputs。"
+  },
+  {
+    "id": 2,
+    "prompt": "一个需求想把当前产品直接 import 另一个产品目录里的代码来加速开发，你作为 App Factory SD 会怎么处理？",
+    "expected": "拒绝跨产品直连，改为产品内实现或共享抽取，并说明为什么这属于边界违规。"
+  },
+  {
+    "id": 3,
+    "prompt": "如果 UX 规格和 architecture 对导航状态定义冲突了，开发阶段应该继续写代码还是先停下来？",
+    "expected": "识别为暂停条件，停止编码并把冲突回推到上游文档决策。"
+  }
+]

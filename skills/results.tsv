@@ -1,0 +1,12 @@
+timestamp	commit	skill	old_score	new_score	status	dimension	note	eval_mode
+2026-05-03T00:00:00+08:00	baseline	app-factory-am	-	84	baseline	-	workflow and boundary handling now clear; checkpoint design still light	dry_run
+2026-05-03T00:00:00+08:00	baseline	app-factory-orchestrator	-	86	baseline	-	strong end-to-end flow and artifact governance; effect not live-tested	dry_run
+2026-05-03T00:00:00+08:00	baseline	app-factory-pm	-	81	baseline	-	clear draft-to-final loop; still weaker on examples and explicit fallback detail	dry_run
+2026-05-03T00:00:00+08:00	baseline	app-factory-qa	-	82	baseline	-	report coverage is solid; user checkpoint and live execution evidence not tested	dry_run
+2026-05-03T00:00:00+08:00	baseline	app-factory-rm-placeholder	-	77	baseline	-	placeholder scope is now safe and explicit; limited depth by design	dry_run
+2026-05-03T00:00:00+08:00	baseline	app-factory-sd	-	84	baseline	-	TDD and boundary rules are clear; could use stronger output templates	dry_run
+2026-05-03T00:00:00+08:00	baseline	app-factory-sm-placeholder	-	76	baseline	-	placeholder behavior is clear but intentionally narrow	dry_run
+2026-05-03T00:00:00+08:00	baseline	app-factory-ud	-	83	baseline	-	handoff flow is solid; concrete artifact templates could improve specificity	dry_run
+2026-05-03T00:20:00+08:00	working-tree	app-factory-rm-placeholder	77	82	keep	指令具体性	补充 output sections 和 handoff，placeholder 不再只有范围说明	dry_run
+2026-05-03T00:20:00+08:00	working-tree	app-factory-sm-placeholder	76	81	keep	指令具体性	补充 retro 输出结构和交接对象，边界更可执行	dry_run
+2026-05-03T00:20:00+08:00	working-tree	app-factory-pm	81	84	keep	检查点设计	补充 final PRD handoff notes 和上下游交接条件	dry_run

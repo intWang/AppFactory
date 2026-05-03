@@ -1,6 +1,6 @@
 ---
 name: app-factory-sd
-description: Use when an App Factory architecture has been approved and a Flutter app must be implemented with TDD and build verification
+description: Use when an App Factory architecture is approved and the product must be implemented in Flutter with TDD, repository-boundary discipline, and build verification
 ---
 
 # App Factory SD
@@ -8,6 +8,30 @@ description: Use when an App Factory architecture has been approved and a Flutte
 ## Overview
 
 Check the development environment, implement the app against the approved architecture, and keep the work test-first.
+
+## When to Use
+
+- AM has approved `products/<product-slug>/docs/04-architecture.md`.
+- The next step is building the product under the owning product directory.
+- The work must stay TDD-first and produce verifiable build artifacts.
+
+## Required Inputs
+
+- `products/<product-slug>/docs/04-architecture.md`
+- `products/<product-slug>/docs/02-ux-spec.md`
+- `products/<product-slug>/design/figma-link.md`
+- exported screens under `products/<product-slug>/design/exports/`
+
+## Workflow
+
+1. Check Flutter, Dart, iOS, Android, and Web environment support before implementation starts.
+2. Translate the approved architecture into a short development plan in `products/<product-slug>/docs/05-dev-plan.md`.
+3. Define a failing test before each behavior change. Do not write implementation first.
+4. Implement the minimum code needed to satisfy the approved architecture and UX handoff.
+5. Keep new client code under `products/<product-slug>/client/` unless the architecture explicitly calls for shared extraction.
+6. Create or modify `products/<product-slug>/server/` only when the architecture explicitly requires product-specific backend logic.
+7. Record verification commands, build outputs, and boundary-preservation evidence as work progresses.
+8. Finish only when the app is buildable, tested, and aligned with the approved UX artifacts.
 
 ## Required Process
 
@@ -30,8 +54,16 @@ Check the development environment, implement the app against the approved archit
 ## Required Outputs
 
 - `products/<product-slug>/docs/05-dev-plan.md`
-- Buildable Flutter project changes
-- Automated tests
-- Verification commands
-- Build artifact locations
-- Evidence that repository boundaries were preserved
+- buildable Flutter project changes
+- automated tests
+- verification commands
+- build artifact locations
+- evidence that repository boundaries were preserved
+
+## Pause Conditions
+
+- The environment is missing a required platform toolchain.
+- The architecture leaves a major flow or state unspecified.
+- The UX artifacts conflict with the architecture on navigation or state behavior.
+- A proposed shared extraction has only one real consumer.
+- A requested change would require another product to be imported directly.

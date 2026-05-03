@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "prompt": "我有一个轻量工具类 App 想法，帮我按 App Factory 流程从 intake 一路推进到 QA，并说明每一站该产出什么文件。",
+    "expected": "按 orchestrator 的顺序推动 PM、UD、AM、SD、QA，并列出每一阶段的文档和目录产物。"
+  },
+  {
+    "id": 2,
+    "prompt": "一个产品刚初始化完，但 design/exports 还没准备好，你作为 App Factory Orchestrator 应该继续推进 AM 和 SD 吗？",
+    "expected": "识别为暂停条件，说明为什么不能继续，并把阻塞与下一个责任方记录到产品文档里。"
+  },
+  {
+    "id": 3,
+    "prompt": "请为一个只做客户端的工具 App 建立 App Factory 产品骨架，包含 docs、design、build 和 client 目录约束。",
+    "expected": "创建或说明完整的产品初始化结构，并明确 server 目录是否保留边界而不启用。"
+  }
+]

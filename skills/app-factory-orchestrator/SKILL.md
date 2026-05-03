@@ -1,30 +1,31 @@
 ---
 name: app-factory-orchestrator
-description: Use when a user wants to turn a lightweight tool app idea into a governed App Factory workflow from intake through QA with product, design, architecture, development, and testing handoffs
+description: Use when a user wants a lightweight tool app moved through the full App Factory workflow from intake to QA with governed role handoffs
 ---
 
 # App Factory Orchestrator
 
 ## Overview
 
-Coordinate App Factory V1 from intake through QA. Default to automatic advancement and pause only on defined risk conditions.
+Coordinate App Factory V1 from intake through QA. Advance automatically when required artifacts and gates exist, and pause only on defined risk or rework conditions.
 
 ## When to Use
 
-- User wants a lightweight tool app taken from idea to compiled, testable output.
-- User wants PM, UD, AM, SD, and QA routed as a governed workflow.
-- User may need client-only or client-plus-server product setup.
+- A user wants a lightweight tool app taken from idea to compiled, testable output.
+- The work should flow through PM, UD, AM, SD, and QA instead of ad hoc execution.
+- The product may be client-only now or may need a reserved or active server boundary.
 
 ## Workflow
 
 1. Create `products/<project-slug>/docs/00-intake.md`.
-2. Route to PM for `products/<project-slug>/docs/01-prd-draft.md`.
-3. Route to UD for `products/<project-slug>/docs/02-ux-spec.md` and `products/<project-slug>/design/figma-link.md`.
-4. Route back to PM for `products/<project-slug>/docs/03-prd-final.md`.
-5. Route to AM for `products/<project-slug>/docs/04-architecture.md`.
-6. Route to SD for `products/<project-slug>/docs/05-dev-plan.md` and implementation.
-7. Route to QA for `products/<project-slug>/docs/06-test-cases.md` and `products/<project-slug>/docs/07-test-report.md`.
-8. Stop only for blocked or rework conditions.
+2. Initialize the product tree and baseline artifacts.
+3. Route to PM for `products/<project-slug>/docs/01-prd-draft.md`.
+4. Route to UD for `products/<project-slug>/docs/02-ux-spec.md`, `products/<project-slug>/design/figma-link.md`, and exported screens.
+5. Route back to PM for `products/<project-slug>/docs/03-prd-final.md`.
+6. Route to AM for `products/<project-slug>/docs/04-architecture.md`.
+7. Route to SD for `products/<project-slug>/docs/05-dev-plan.md` and implementation.
+8. Route to QA for `products/<project-slug>/docs/06-test-cases.md` and `products/<project-slug>/docs/07-test-report.md`.
+9. Stop only for blocked or rework conditions and record the current state in the owning product docs.
 
 ## Product Initialization
 
@@ -91,6 +92,13 @@ Write `products/<project-slug>/docs/00-intake.md` with:
 - `## Risks`
 - `## Unknowns`
 - `## Gate Result`
+
+## Handoff Rules
+
+- Never advance to the next role without the current role's required output file.
+- Route rework back to the role that owns the missing decision instead of patching around it downstream.
+- Keep all docs, design references, tests, and build outputs inside the owning `products/<project-slug>/` boundary.
+- Record blocked status and next unblocker in the current doc rather than silently stalling.
 
 ## State Machine
 
