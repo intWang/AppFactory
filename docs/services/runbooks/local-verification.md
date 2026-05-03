@@ -31,3 +31,13 @@ curl http://localhost:8082/v1/upgrade/check-client
 
 - Native compile verification is unblocked with local Go.
 - Compose verification is still blocked until Docker with Compose is installed.
+
+## Verified Evidence
+
+- `go build ./...` passes for `account-service`, `upgrade-service`, and `service-manager`.
+- `go test ./...` passes for all three services.
+- Native runtime verification succeeded for:
+  - `POST /v1/accounts/register`
+  - `POST /v1/upgrade/check-client`
+  - `GET /v1/services/health`
+  - `POST /v1/services/switch-profile`

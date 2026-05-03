@@ -11,3 +11,14 @@ type Provider struct {
 	Enabled   bool   `json:"enabled"`
 	Available bool   `json:"available"`
 }
+
+type RegisterRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Nickname string `json:"nickname"`
+}
+
+type RegisterResponse struct {
+	Status string `json:"status"`
+	User   User   `json:"user"`
+}

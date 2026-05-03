@@ -3,18 +3,19 @@
 ## Immediate Follow-Ups
 
 - Install and verify Docker with Compose support on the local machine.
-- Add runbooks for local startup, troubleshooting, and service switching.
-- Define concrete PostgreSQL schemas and migrations for account-service.
-- Define concrete PostgreSQL schemas and migrations for upgrade-service.
 - Define Redis usage boundaries to avoid turning cache into system-of-record.
+- Replace in-memory account storage with PostgreSQL-backed repositories.
+- Replace in-memory upgrade storage with PostgreSQL-backed repositories.
+- Add service-manager state persistence and local process execution wiring.
 
 ## Next Technical Slice
 
-- Add shared Go workspace files and module boundaries.
-- Add minimal HTTP servers and `/healthz` endpoints for all three services.
-- Add shared config loader, logger, and runtime helpers under `services/shared/go`.
-- Add service-manager process registry and health aggregation.
 - Add Docker Compose for PostgreSQL, Redis, and the three services.
+- Add runnable Compose verification once Docker support exists.
+- Add shared config loader with real YAML parsing and environment override support.
+- Add account-service password hashing and session issuance.
+- Add upgrade-service mutation handlers for releases, deployments, switches, and rollbacks.
+- Add service-manager process execution and restart handling.
 
 ## Account-Service Follow-Ups
 
@@ -25,8 +26,6 @@
 
 ## Upgrade-Service Follow-Ups
 
-- Add deployment record model and migration.
-- Add active-target switching model and rollback model.
 - Add client version-check API request and response schema.
 - Add service-target query and switch API schema.
 - Add explicit build-number governance separate from display-version strings.
@@ -34,7 +33,6 @@
 ## Service-Manager Follow-Ups
 
 - Add local process start / stop / restart commands.
-- Add health snapshot aggregation and status summaries.
 - Add profile switching and target visibility.
 - Add local hot-switch contract and lock handling.
 

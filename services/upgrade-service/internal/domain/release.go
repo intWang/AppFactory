@@ -11,7 +11,11 @@ type VersionTarget struct {
 }
 
 func (v VersionTarget) UpgradeMode() string {
-	gap := v.LatestBuild - v.CurrentBuild
+	return v.UpgradeModeForBuild(v.CurrentBuild)
+}
+
+func (v VersionTarget) UpgradeModeForBuild(currentBuild int) string {
+	gap := v.LatestBuild - currentBuild
 	if gap <= 0 {
 		return "none"
 	}
@@ -19,4 +23,10 @@ func (v VersionTarget) UpgradeMode() string {
 		return "forced"
 	}
 	return "optional"
+}
+
+type CheckUpgradeRequest struct {
+	ProductSlug    string `json:"product_slug"`
+	CurrentVersion string `json:"current_version"`
+	CurrentBuild   int    `json:"current_build"`
 }
