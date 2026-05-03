@@ -15,6 +15,11 @@ Check the development environment, implement the app against the approved archit
 - Do not write implementation before defining failing tests.
 - Produce a compilable app and automated tests.
 - Record build commands and artifact locations.
+- Default new business code to `products/<product-slug>/`.
+- Modify `packages/` only when the approved architecture explicitly calls for shared extraction.
+- Do not introduce direct imports from one product into another product.
+- Keep build outputs under the owning product's `build/outputs/`.
+- Keep product docs and tests inside the owning product directory.
 
 ## Required Outputs
 
@@ -23,3 +28,4 @@ Check the development environment, implement the app against the approved archit
 - Automated tests
 - Verification commands
 - Build artifact locations
+- Evidence that repository boundaries were preserved
