@@ -6,6 +6,8 @@
 
 ## Input Source
 
+## UX Inputs
+
 ## Environment Check
 
 ## TDD Strategy

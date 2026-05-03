@@ -6,6 +6,8 @@
 
 ## Input Source
 
+## UX Inputs
+
 ## Architecture Goals
 
 ## Platform Scope
@@ -16,11 +18,15 @@
 
 ## Feature Modules
 
+## Monorepo Placement
+
 ## Route Strategy
 
 ## State Strategy
 
 ## Data Flow
+
+## UX-Driven Technical Risks
 
 ## Safety Boundaries
 

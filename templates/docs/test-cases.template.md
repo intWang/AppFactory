@@ -6,6 +6,8 @@
 
 ## Input Source
 
+## Design Inputs
+
 ## Test Scope
 
 ## Out of Scope
