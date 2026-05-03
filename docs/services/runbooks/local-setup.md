@@ -28,10 +28,16 @@ The PostgreSQL bootstrap and migration scripts are intentionally idempotent:
 3. Run:
 
 ```bash
-docker compose -f ops/compose/docker-compose.yml up --build
+sh ops/scripts/compose-up.sh
 ```
+
+Compose host ports:
+
+- `service-manager`: `http://localhost:18080`
+- `account-service`: `http://localhost:18081`
+- `upgrade-service`: `http://localhost:18082`
 
 ## Current Blockers
 
 - Go is installed locally at `$HOME/develop/go`.
-- `docker compose` is not installed on this machine yet.
+- Docker Desktop is installed locally at `$HOME/Applications/Docker.app`.

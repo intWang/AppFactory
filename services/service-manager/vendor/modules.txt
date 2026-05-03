@@ -1,0 +1,9 @@
+# appfactory/shared-go v0.0.0 => ../shared/go
+## explicit; go 1.23.0
+appfactory/shared-go/config
+appfactory/shared-go/health
+appfactory/shared-go/httpx
+# gopkg.in/yaml.v3 v3.0.1
+## explicit
+gopkg.in/yaml.v3
+# appfactory/shared-go => ../shared/go

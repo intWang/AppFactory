@@ -5,37 +5,48 @@ services:
       POSTGRES_DB: appfactory
       POSTGRES_USER: appfactory
       POSTGRES_PASSWORD: appfactory
-    ports:
-      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
 
   redis:
     image: redis:7
-    ports:
-      - "6379:6379"
 
   account-service:
     build:
-      context: ../../services/account-service
+      context: ../../services
+      dockerfile: account-service/Dockerfile
+    environment:
+      APP_CONFIG_PATH: /app/configs/compose.yaml
     ports:
-      - "8081:8081"
+      - "18081:8081"
     depends_on:
       - postgres
       - redis
 
   upgrade-service:
     build:
-      context: ../../services/upgrade-service
+      context: ../../services
+      dockerfile: upgrade-service/Dockerfile
+    environment:
+      APP_CONFIG_PATH: /app/configs/compose.yaml
     ports:
-      - "8082:8082"
+      - "18082:8082"
     depends_on:
       - postgres
       - redis
 
   service-manager:
     build:
-      context: ../../services/service-manager
+      context: ../../services
+      dockerfile: service-manager/Dockerfile
+    environment:
+      APP_CONFIG_PATH: /app/configs/compose.yaml
     ports:
-      - "8080:8080"
+      - "18080:8080"
     depends_on:
       - account-service
       - upgrade-service
+
+volumes:
+  postgres-data:

@@ -16,4 +16,4 @@ echo "  cd services/upgrade-service && ./bin/upgrade-service"
 echo "  cd services/service-manager && ./bin/service-manager"
 echo
 echo "Compose mode example:"
-echo "  docker compose -f ops/compose/docker-compose.yml up --build"
+echo "  sh ops/scripts/compose-up.sh"

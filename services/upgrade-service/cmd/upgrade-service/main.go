@@ -4,13 +4,18 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 
 	sharedconfig "appfactory/shared-go/config"
 	"appfactory/upgrade-service/internal/httpapi"
 )
 
 func main() {
-	cfg, err := sharedconfig.LoadYAML[httpapi.Config]("configs/local.yaml")
+	configPath := os.Getenv("APP_CONFIG_PATH")
+	if configPath == "" {
+		configPath = "configs/local.yaml"
+	}
+	cfg, err := sharedconfig.LoadYAML[httpapi.Config](configPath)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,9 +1,14 @@
 FROM golang:1.23 AS build
-WORKDIR /app
+ENV GOFLAGS=-mod=vendor
+ENV GOWORK=off
+WORKDIR /workspace
 COPY . .
+WORKDIR /workspace/account-service
 RUN go build -o /out/account-service ./cmd/account-service
 
 FROM gcr.io/distroless/base-debian12
-COPY --from=build /out/account-service /account-service
+WORKDIR /app
+COPY --from=build /out/account-service /app/account-service
+COPY --from=build /workspace/account-service/configs /app/configs
 EXPOSE 8081
-ENTRYPOINT ["/account-service"]
+ENTRYPOINT ["/app/account-service"]

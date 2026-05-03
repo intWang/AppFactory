@@ -1,9 +1,14 @@
 FROM golang:1.23 AS build
-WORKDIR /app
+ENV GOFLAGS=-mod=vendor
+ENV GOWORK=off
+WORKDIR /workspace
 COPY . .
+WORKDIR /workspace/service-manager
 RUN go build -o /out/service-manager ./cmd/service-manager
 
 FROM gcr.io/distroless/base-debian12
-COPY --from=build /out/service-manager /service-manager
+WORKDIR /app
+COPY --from=build /out/service-manager /app/service-manager
+COPY --from=build /workspace/service-manager/configs /app/configs
 EXPOSE 8080
-ENTRYPOINT ["/service-manager"]
+ENTRYPOINT ["/app/service-manager"]

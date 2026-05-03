@@ -3,13 +3,18 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"appfactory/service-manager/internal/httpapi"
 	"appfactory/service-manager/internal/runtime"
 )
 
 func main() {
-	manager, err := runtime.NewManagerFromConfig("configs/local.yaml")
+	configPath := os.Getenv("APP_CONFIG_PATH")
+	if configPath == "" {
+		configPath = "configs/local.yaml"
+	}
+	manager, err := runtime.NewManagerFromConfig(configPath)
 	if err != nil {
 		log.Fatal(err)
 	}
