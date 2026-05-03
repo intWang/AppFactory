@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"appfactory/upgrade-service/internal/domain"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,4 +45,166 @@ LIMIT 1
 	}
 	target.ForceUpgradeAfter = s.forcedUpgradeGap
 	return target, nil
+}
+
+func (s *PostgresStore) GetActiveTargets(ctx context.Context) (domain.TargetBundle, error) {
+	client, err := s.GetTarget(ctx, "client")
+	if err != nil {
+		return domain.TargetBundle{}, err
+	}
+	service, err := s.GetTarget(ctx, "service")
+	if err != nil {
+		return domain.TargetBundle{}, err
+	}
+	return domain.TargetBundle{Client: client, Service: service}, nil
+}
+
+func (s *PostgresStore) CreateRelease(ctx context.Context, req domain.CreateReleaseRequest) (domain.ReleaseVersion, error) {
+	release := domain.ReleaseVersion{
+		ID:           fmt.Sprintf("release-%d", time.Now().UnixNano()),
+		ProductSlug:  req.ProductSlug,
+		TargetType:   req.TargetType,
+		VersionLabel: req.VersionLabel,
+		BuildNumber:  req.BuildNumber,
+		UpgradeURL:   req.UpgradeURL,
+	}
+	_, err := s.pool.Exec(ctx, `
+INSERT INTO release_versions (id, product_slug, target_type, version_label, build_number, upgrade_url)
+VALUES ($1, $2, $3, $4, $5, $6)
+`, release.ID, release.ProductSlug, release.TargetType, release.VersionLabel, release.BuildNumber, release.UpgradeURL)
+	if err != nil {
+		return domain.ReleaseVersion{}, err
+	}
+	return release, nil
+}
+
+func (s *PostgresStore) CreateDeployment(ctx context.Context, req domain.CreateDeploymentRequest) (domain.DeploymentRecord, error) {
+	deployment := domain.DeploymentRecord{
+		ID:              fmt.Sprintf("deployment-%d", time.Now().UnixNano()),
+		TargetVersionID: req.TargetVersionID,
+		Environment:     req.Environment,
+		Status:          req.Status,
+	}
+	_, err := s.pool.Exec(ctx, `
+INSERT INTO deployment_records (id, target_version_id, environment, status)
+VALUES ($1, $2, $3, $4)
+`, deployment.ID, deployment.TargetVersionID, deployment.Environment, deployment.Status)
+	if err != nil {
+		return domain.DeploymentRecord{}, err
+	}
+	return deployment, nil
+}
+
+func (s *PostgresStore) SwitchTarget(ctx context.Context, req domain.SwitchTargetRequest) (domain.VersionTarget, error) {
+	release, err := s.releaseByID(ctx, req.ToVersionID)
+	if err != nil {
+		return domain.VersionTarget{}, err
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.VersionTarget{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var fromVersionID *string
+	_ = tx.QueryRow(ctx, `
+SELECT active_version_id
+FROM active_targets
+WHERE product_slug = $1 AND target_type = $2
+`, req.ProductSlug, req.TargetType).Scan(&fromVersionID)
+
+	_, err = tx.Exec(ctx, `
+INSERT INTO active_targets (id, product_slug, target_type, active_version_id)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (product_slug, target_type)
+DO UPDATE SET active_version_id = EXCLUDED.active_version_id, updated_at = NOW()
+`, fmt.Sprintf("active-%s-%s", req.ProductSlug, req.TargetType), req.ProductSlug, req.TargetType, req.ToVersionID)
+	if err != nil {
+		return domain.VersionTarget{}, err
+	}
+	_, err = tx.Exec(ctx, `
+INSERT INTO switch_events (id, product_slug, target_type, from_version_id, to_version_id, operator)
+VALUES ($1, $2, $3, $4, $5, $6)
+`, fmt.Sprintf("switch-%d", time.Now().UnixNano()), req.ProductSlug, req.TargetType, fromVersionID, req.ToVersionID, req.Operator)
+	if err != nil {
+		return domain.VersionTarget{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.VersionTarget{}, err
+	}
+	return s.versionTargetFromRelease(release), nil
+}
+
+func (s *PostgresStore) RollbackTarget(ctx context.Context, req domain.RollbackTargetRequest) (domain.VersionTarget, error) {
+	release, err := s.releaseByID(ctx, req.RolledBackToVersionID)
+	if err != nil {
+		return domain.VersionTarget{}, err
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.VersionTarget{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var currentVersionID string
+	if err := tx.QueryRow(ctx, `
+SELECT active_version_id
+FROM active_targets
+WHERE product_slug = $1 AND target_type = $2
+`, req.ProductSlug, req.TargetType).Scan(&currentVersionID); err != nil {
+		return domain.VersionTarget{}, err
+	}
+	_, err = tx.Exec(ctx, `
+UPDATE active_targets
+SET active_version_id = $1, updated_at = NOW()
+WHERE product_slug = $2 AND target_type = $3
+`, req.RolledBackToVersionID, req.ProductSlug, req.TargetType)
+	if err != nil {
+		return domain.VersionTarget{}, err
+	}
+	_, err = tx.Exec(ctx, `
+INSERT INTO rollback_events (id, product_slug, target_type, rolled_back_from_version_id, rolled_back_to_version_id, operator)
+VALUES ($1, $2, $3, $4, $5, $6)
+`, fmt.Sprintf("rollback-%d", time.Now().UnixNano()), req.ProductSlug, req.TargetType, currentVersionID, req.RolledBackToVersionID, req.Operator)
+	if err != nil {
+		return domain.VersionTarget{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.VersionTarget{}, err
+	}
+	return s.versionTargetFromRelease(release), nil
+}
+
+func (s *PostgresStore) releaseByID(ctx context.Context, id string) (domain.ReleaseVersion, error) {
+	var release domain.ReleaseVersion
+	err := s.pool.QueryRow(ctx, `
+SELECT id, product_slug, target_type, version_label, build_number, COALESCE(upgrade_url, '')
+FROM release_versions
+WHERE id = $1
+`, id).Scan(
+		&release.ID,
+		&release.ProductSlug,
+		&release.TargetType,
+		&release.VersionLabel,
+		&release.BuildNumber,
+		&release.UpgradeURL,
+	)
+	if err != nil {
+		return domain.ReleaseVersion{}, err
+	}
+	return release, nil
+}
+
+func (s *PostgresStore) versionTargetFromRelease(release domain.ReleaseVersion) domain.VersionTarget {
+	return domain.VersionTarget{
+		ProductSlug:       release.ProductSlug,
+		TargetType:        release.TargetType,
+		CurrentVersion:    release.VersionLabel,
+		CurrentBuild:      release.BuildNumber,
+		LatestVersion:     release.VersionLabel,
+		LatestBuild:       release.BuildNumber,
+		ForceUpgradeAfter: s.forcedUpgradeGap,
+	}
 }

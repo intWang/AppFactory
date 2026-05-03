@@ -31,11 +31,43 @@ The PostgreSQL bootstrap and migration scripts are intentionally idempotent:
 sh ops/scripts/compose-up.sh
 ```
 
+4. If you need to rebuild a changed service image from a non-login shell, ensure Docker's bundled binaries are on `PATH`:
+
+```bash
+export PATH="$HOME/Applications/Docker.app/Contents/Resources/bin:$PATH"
+docker compose -f ops/compose/docker-compose.yml build upgrade-service
+docker compose -f ops/compose/docker-compose.yml up -d upgrade-service
+```
+
 Compose host ports:
 
 - `service-manager`: `http://localhost:18080`
 - `account-service`: `http://localhost:18081`
 - `upgrade-service`: `http://localhost:18082`
+
+Example upgrade lifecycle smoke test:
+
+```bash
+release=$(curl -sS -X POST http://localhost:18082/v1/releases \
+  -H 'Content-Type: application/json' \
+  -d '{"product_slug":"shared-client","target_type":"client","version_label":"26.2.20.06","build_number":6,"upgrade_url":"https://example.com/client/26.2.20.06"}')
+
+release_id=$(printf '%s' "$release" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
+
+curl -sS -X POST http://localhost:18082/v1/deployments \
+  -H 'Content-Type: application/json' \
+  -d "{\"target_version_id\":\"$release_id\",\"environment\":\"compose-local\",\"status\":\"deployed\"}"
+
+curl -sS -X POST http://localhost:18082/v1/switches \
+  -H 'Content-Type: application/json' \
+  -d "{\"product_slug\":\"shared-client\",\"target_type\":\"client\",\"to_version_id\":\"$release_id\",\"operator\":\"service-manager\"}"
+
+curl -sS http://localhost:18082/v1/targets/active
+
+curl -sS -X POST http://localhost:18082/v1/rollbacks \
+  -H 'Content-Type: application/json' \
+  -d '{"product_slug":"shared-client","target_type":"client","rolled_back_to_version_id":"rv-client-2622004","operator":"qa"}'
+```
 
 ## Current Blockers
 

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -45,5 +46,68 @@ func TestHealthEndpointAggregatesReachableServices(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "\"account-service\"") || !strings.Contains(body, "\"ok\"") {
 		t.Fatalf("expected aggregated service health in response body, got %s", body)
+	}
+}
+
+func TestReleaseSwitchProxyUsesUpgradeService(t *testing.T) {
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/switches" {
+			t.Fatalf("expected /v1/switches, got %s", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		_, _ = w.Write([]byte(`{"target_type":"client","latest_version":"26.2.20.06"}`))
+	}))
+	defer upgradeService.Close()
+
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/releases/switch",
+		bytes.NewBufferString(`{"product_slug":"shared-client","target_type":"client","to_version_id":"rv-1","operator":"service-manager"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK && rec.Code != http.StatusCreated {
+		t.Fatalf("expected proxied success status, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "\"latest_version\":\"26.2.20.06\"") {
+		t.Fatalf("expected proxied release switch response, got %s", rec.Body.String())
+	}
+}
+
+func TestReleaseTargetsProxyUsesUpgradeService(t *testing.T) {
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/targets/active" {
+			t.Fatalf("expected /v1/targets/active, got %s", r.URL.Path)
+		}
+		if r.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", r.Method)
+		}
+		_, _ = w.Write([]byte(`{"client":{"latest_version":"26.2.20.06"},"service":{"latest_version":"26.2.20.03"}}`))
+	}))
+	defer upgradeService.Close()
+
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/releases/targets", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected proxied success status, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "\"latest_version\":\"26.2.20.06\"") {
+		t.Fatalf("expected proxied active target response, got %s", rec.Body.String())
 	}
 }

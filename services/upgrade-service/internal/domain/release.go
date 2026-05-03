@@ -30,3 +30,52 @@ type CheckUpgradeRequest struct {
 	CurrentVersion string `json:"current_version"`
 	CurrentBuild   int    `json:"current_build"`
 }
+
+type ReleaseVersion struct {
+	ID           string `json:"id"`
+	ProductSlug  string `json:"product_slug"`
+	TargetType   string `json:"target_type"`
+	VersionLabel string `json:"version_label"`
+	BuildNumber  int    `json:"build_number"`
+	UpgradeURL   string `json:"upgrade_url,omitempty"`
+}
+
+type CreateReleaseRequest struct {
+	ProductSlug  string `json:"product_slug"`
+	TargetType   string `json:"target_type"`
+	VersionLabel string `json:"version_label"`
+	BuildNumber  int    `json:"build_number"`
+	UpgradeURL   string `json:"upgrade_url"`
+}
+
+type DeploymentRecord struct {
+	ID              string `json:"id"`
+	TargetVersionID string `json:"target_version_id"`
+	Environment     string `json:"environment"`
+	Status          string `json:"status"`
+}
+
+type CreateDeploymentRequest struct {
+	TargetVersionID string `json:"target_version_id"`
+	Environment     string `json:"environment"`
+	Status          string `json:"status"`
+}
+
+type SwitchTargetRequest struct {
+	ProductSlug string `json:"product_slug"`
+	TargetType  string `json:"target_type"`
+	ToVersionID string `json:"to_version_id"`
+	Operator    string `json:"operator"`
+}
+
+type RollbackTargetRequest struct {
+	ProductSlug           string `json:"product_slug"`
+	TargetType            string `json:"target_type"`
+	RolledBackToVersionID string `json:"rolled_back_to_version_id"`
+	Operator              string `json:"operator"`
+}
+
+type TargetBundle struct {
+	Client  VersionTarget `json:"client"`
+	Service VersionTarget `json:"service"`
+}

@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"time"
 
@@ -139,6 +141,15 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 	mux.HandleFunc("/v1/services/targets", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"targets": toServiceRuntimes(manager.List())})
 	})
+	mux.HandleFunc("/v1/releases/targets", func(w http.ResponseWriter, r *http.Request) {
+		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/targets/active")
+	})
+	mux.HandleFunc("/v1/releases/switch", func(w http.ResponseWriter, r *http.Request) {
+		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodPost, "/v1/switches")
+	})
+	mux.HandleFunc("/v1/releases/rollback", func(w http.ResponseWriter, r *http.Request) {
+		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodPost, "/v1/rollbacks")
+	})
 
 	return mux
 }
@@ -154,4 +165,66 @@ func toServiceRuntimes(services []runtime.ManagedService) []ServiceRuntime {
 		})
 	}
 	return results
+}
+
+func proxyUpgradeRequest(
+	w http.ResponseWriter,
+	r *http.Request,
+	manager *runtime.Manager,
+	httpClient *http.Client,
+	expectedMethod string,
+	path string,
+) {
+	if r.Method != expectedMethod {
+		httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	upgradeService, ok := findService(manager.List(), "upgrade-service")
+	if !ok {
+		httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "upgrade-service not configured"})
+		return
+	}
+
+	var body io.Reader = http.NoBody
+	if r.Body != nil && expectedMethod != http.MethodGet {
+		payload, err := io.ReadAll(r.Body)
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+			return
+		}
+		body = bytes.NewReader(payload)
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), expectedMethod, upgradeService.Address+path, body)
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	_, _ = w.Write(responseBody)
+}
+
+func findService(services []runtime.ManagedService, name string) (runtime.ManagedService, bool) {
+	for _, service := range services {
+		if service.Name == name {
+			return service, true
+		}
+	}
+	return runtime.ManagedService{}, false
 }

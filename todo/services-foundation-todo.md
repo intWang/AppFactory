@@ -2,20 +2,18 @@
 
 ## Immediate Follow-Ups
 
-- Install and verify Docker with Compose support on the local machine.
 - Define Redis usage boundaries to avoid turning cache into system-of-record.
-- Replace in-memory account storage with PostgreSQL-backed repositories.
-- Replace in-memory upgrade storage with PostgreSQL-backed repositories.
-- Add service-manager state persistence and local process execution wiring.
+- Add service-manager state persistence beyond process memory.
+- Add release-target switching through `service-manager`, not just directly through `upgrade-service`.
+- Add deploy/switch audit queries for release history views.
 
 ## Next Technical Slice
 
-- Add Docker Compose for PostgreSQL, Redis, and the three services.
-- Add runnable Compose verification once Docker support exists.
-- Add shared config loader with real YAML parsing and environment override support.
 - Add account-service password hashing and session issuance.
-- Add upgrade-service mutation handlers for releases, deployments, switches, and rollbacks.
-- Add service-manager process execution and restart handling.
+- Add provider mock adapters and callback contracts for social-login providers.
+- Add upgrade-service release history, switch history, and rollback history query APIs.
+- Add service-manager release orchestration endpoints that call `upgrade-service`.
+- Add service-manager lock handling for conflicting start/stop/restart/switch actions.
 
 ## Account-Service Follow-Ups
 
@@ -26,15 +24,16 @@
 
 ## Upgrade-Service Follow-Ups
 
-- Add client version-check API request and response schema.
-- Add service-target query and switch API schema.
 - Add explicit build-number governance separate from display-version strings.
+- Add release-channel awareness and staged rollout strategy.
+- Add read APIs for deployments, switch events, and rollback events.
 
 ## Service-Manager Follow-Ups
 
-- Add local process start / stop / restart commands.
-- Add profile switching and target visibility.
+- Add version-switch actions that coordinate with `upgrade-service`.
+- Add profile switching persistence and target visibility snapshots.
 - Add local hot-switch contract and lock handling.
+- Add Compose and native-mode parity checks in automated tests.
 
 ## Future Product Work
 
@@ -44,5 +43,6 @@
 
 ## Environment Blockers
 
-- Go is installed locally at `$HOME/develop/go`, but Docker support is still missing.
-- `docker` and `docker compose` are not currently available on this machine.
+- `Go` is installed locally at `$HOME/develop/go`.
+- Docker Desktop is installed locally at `$HOME/Applications/Docker.app`.
+- Non-login shells may need `PATH="$HOME/Applications/Docker.app/Contents/Resources/bin:$PATH"` before invoking `docker`.

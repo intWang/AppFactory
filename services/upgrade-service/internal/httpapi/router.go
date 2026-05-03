@@ -77,32 +77,80 @@ func NewRouterWithRepository(store storage.Repository) http.Handler {
 		})
 	})
 	mux.HandleFunc("/v1/releases", func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteJSON(w, http.StatusCreated, map[string]string{"message": "release placeholder"})
+		if r.Method != http.MethodPost {
+			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		var req domain.CreateReleaseRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+			return
+		}
+		release, err := store.CreateRelease(r.Context(), req)
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		httpx.WriteJSON(w, http.StatusCreated, release)
 	})
 	mux.HandleFunc("/v1/deployments", func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteJSON(w, http.StatusCreated, map[string]string{"message": "deployment placeholder"})
+		if r.Method != http.MethodPost {
+			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		var req domain.CreateDeploymentRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+			return
+		}
+		deployment, err := store.CreateDeployment(r.Context(), req)
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		httpx.WriteJSON(w, http.StatusCreated, deployment)
 	})
 	mux.HandleFunc("/v1/switches", func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteJSON(w, http.StatusCreated, map[string]string{"message": "switch placeholder"})
+		if r.Method != http.MethodPost {
+			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		var req domain.SwitchTargetRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+			return
+		}
+		target, err := store.SwitchTarget(r.Context(), req)
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		httpx.WriteJSON(w, http.StatusCreated, target)
 	})
 	mux.HandleFunc("/v1/rollbacks", func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteJSON(w, http.StatusCreated, map[string]string{"message": "rollback placeholder"})
+		if r.Method != http.MethodPost {
+			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		var req domain.RollbackTargetRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+			return
+		}
+		target, err := store.RollbackTarget(r.Context(), req)
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		httpx.WriteJSON(w, http.StatusCreated, target)
 	})
 	mux.HandleFunc("/v1/targets/active", func(w http.ResponseWriter, r *http.Request) {
-		client, err := store.GetTarget(r.Context(), "client")
+		targets, err := store.GetActiveTargets(r.Context())
 		if err != nil {
 			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
-		service, err := store.GetTarget(r.Context(), "service")
-		if err != nil {
-			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
-		}
-		httpx.WriteJSON(w, http.StatusOK, map[string]any{
-			"client":  client,
-			"service": service,
-		})
+		httpx.WriteJSON(w, http.StatusOK, targets)
 	})
 
 	return mux
