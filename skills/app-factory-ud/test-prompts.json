@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "prompt": "基于这份 PRD draft，按 App Factory UD 方式输出 UX spec、页面清单、关键状态和设计交付物要求。",
+    "expected": "生成面向 docs/02-ux-spec.md 和 design/ 的完整设计交接骨架，包含 flows、states、component guidance 和 PM write-back。"
+  },
+  {
+    "id": 2,
+    "prompt": "如果 draft PRD 里两个核心流程互相冲突，而且有一个关键边界状态说不清楚，UD 应该怎么做？",
+    "expected": "识别为暂停条件，停止继续细化设计，并把阻塞点反馈给 PM。"
+  }
+]

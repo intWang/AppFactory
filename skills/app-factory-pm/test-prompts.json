@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "prompt": "把这个零散需求整理成 App Factory 的 PRD draft，要求适合先交给 UX 设计。",
+    "expected": "输出面向 docs/01-prd-draft.md 的小而清晰的产品定义，包含核心流程、页面列表、非目标和 monetization reserve。"
+  },
+  {
+    "id": 2,
+    "prompt": "UD 已经回写了几个设计修改点，请把原先的 draft PRD 更新成 final PRD，并指出哪些地方是 UX 改动带来的。",
+    "expected": "比较 draft 与 UX spec，生成 docs/03-prd-final.md，并明确 UX Changes From UD 与最终交互约束。"
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "prompt": "这个 App 已经开发完成，请按 App Factory QA 方式生成测试用例和测试报告，并包含设计一致性与版本升级检查。",
+    "expected": "同时覆盖 docs/06-test-cases.md 和 docs/07-test-report.md，含自动化、手动、设计一致性、upgrade、边界检查与 gate result。"
+  },
+  {
+    "id": 2,
+    "prompt": "如果一个构建通过了单元测试，但缺少截图证据，而且产品直接 import 了另一个 product，你会如何给出 QA 结论？",
+    "expected": "识别为 fail 或 blocked，说明证据缺失与仓库隔离破坏，并拒绝给出 pass。"
+  }
+]

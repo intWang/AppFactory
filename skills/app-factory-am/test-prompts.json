@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "prompt": "基于这个产品的最终 PRD 和 UX 规格，帮我输出 App Factory AM 架构文档，重点说明 capability modules、feature modules、monorepo placement 和 server decision。",
+    "expected": "产出一份面向 products/<product-slug>/docs/04-architecture.md 的结构化架构方案，先能力后功能，并明确 client/server 与 packages 边界。"
+  },
+  {
+    "id": 2,
+    "prompt": "这个产品有账号、支付、订阅和强制升级需求，你作为 App Factory AM 该怎么判断哪些应该走共享能力、哪些应该留在产品目录？",
+    "expected": "先做边界判断，再给出共享能力优先、产品隔离、升级治理和 server scope 的明确决策。"
+  }
+]

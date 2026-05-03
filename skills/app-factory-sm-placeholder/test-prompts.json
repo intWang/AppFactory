@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "prompt": "这个产品先不做正式 retrospective，但我想把后续 scrum / retro 的边界和输入先记下来。",
+    "expected": "把改进输入记录到 retro 文档里，并明确这只是边界记录，不是完整 retrospective。"
+  },
+  {
+    "id": 2,
+    "prompt": "请现在就主持一次完整的回顾会并更新整个工厂流程。",
+    "expected": "说明 placeholder 不能直接承担正式敏捷管理动作，并把请求识别为超出当前范围。"
+  }
+]
