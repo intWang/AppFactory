@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: appfactory
+      POSTGRES_USER: appfactory
+      POSTGRES_PASSWORD: appfactory
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  account-service:
+    build:
+      context: ../../services/account-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - redis
+
+  upgrade-service:
+    build:
+      context: ../../services/upgrade-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+      - redis
+
+  service-manager:
+    build:
+      context: ../../services/service-manager
+    ports:
+      - "8080:8080"
+    depends_on:
+      - account-service
+      - upgrade-service

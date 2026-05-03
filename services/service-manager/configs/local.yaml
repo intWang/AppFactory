@@ -1,0 +1,11 @@
+service_name: service-manager
+http_port: "8080"
+environment: local
+default_profile: local
+services:
+  - name: account-service
+    command: go run ./cmd/account-service
+    address: http://localhost:8081
+  - name: upgrade-service
+    command: go run ./cmd/upgrade-service
+    address: http://localhost:8082
