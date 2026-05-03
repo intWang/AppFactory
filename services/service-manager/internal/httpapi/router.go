@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"appfactory/service-manager/internal/runtime"
@@ -26,6 +27,19 @@ type HealthResult struct {
 	Profile string `json:"profile"`
 }
 
+type operationLocker struct {
+	mu    sync.Mutex
+	locks map[string]bool
+}
+
+type releasePromoteRequest struct {
+	ProductSlug     string `json:"product_slug"`
+	TargetType      string `json:"target_type"`
+	TargetVersionID string `json:"target_version_id"`
+	Environment     string `json:"environment"`
+	Operator        string `json:"operator"`
+}
+
 func NewRouter() http.Handler {
 	manager, err := runtime.NewManagerFromConfig("configs/local.yaml")
 	if err != nil {
@@ -40,6 +54,7 @@ func NewRouter() http.Handler {
 func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 	mux := http.NewServeMux()
 	httpClient := &http.Client{Timeout: 2 * time.Second}
+	locker := &operationLocker{locks: map[string]bool{}}
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, sharedhealth.Snapshot{
@@ -148,13 +163,30 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/releases")
 	})
 	mux.HandleFunc("/v1/releases/create", func(w http.ResponseWriter, r *http.Request) {
-		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodPost, "/v1/releases")
+		proxyLockedUpgradeRequest(w, r, manager, httpClient, locker, http.MethodPost, "/v1/releases", func(payload []byte) (string, error) {
+			var req struct {
+				ProductSlug string `json:"product_slug"`
+				TargetType  string `json:"target_type"`
+			}
+			if err := json.Unmarshal(payload, &req); err != nil {
+				return "", err
+			}
+			return releaseLockKey(req.ProductSlug, req.TargetType), nil
+		})
 	})
 	mux.HandleFunc("/v1/deployments/history", func(w http.ResponseWriter, r *http.Request) {
 		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/deployments")
 	})
 	mux.HandleFunc("/v1/deployments/create", func(w http.ResponseWriter, r *http.Request) {
-		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodPost, "/v1/deployments")
+		proxyLockedUpgradeRequest(w, r, manager, httpClient, locker, http.MethodPost, "/v1/deployments", func(payload []byte) (string, error) {
+			var req struct {
+				TargetVersionID string `json:"target_version_id"`
+			}
+			if err := json.Unmarshal(payload, &req); err != nil {
+				return "", err
+			}
+			return "deployment:" + req.TargetVersionID, nil
+		})
 	})
 	mux.HandleFunc("/v1/releases/switches/history", func(w http.ResponseWriter, r *http.Request) {
 		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/switches")
@@ -163,10 +195,74 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/rollbacks")
 	})
 	mux.HandleFunc("/v1/releases/switch", func(w http.ResponseWriter, r *http.Request) {
-		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodPost, "/v1/switches")
+		proxyLockedUpgradeRequest(w, r, manager, httpClient, locker, http.MethodPost, "/v1/switches", func(payload []byte) (string, error) {
+			var req struct {
+				ProductSlug string `json:"product_slug"`
+				TargetType  string `json:"target_type"`
+			}
+			if err := json.Unmarshal(payload, &req); err != nil {
+				return "", err
+			}
+			return releaseLockKey(req.ProductSlug, req.TargetType), nil
+		})
 	})
 	mux.HandleFunc("/v1/releases/rollback", func(w http.ResponseWriter, r *http.Request) {
-		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodPost, "/v1/rollbacks")
+		proxyLockedUpgradeRequest(w, r, manager, httpClient, locker, http.MethodPost, "/v1/rollbacks", func(payload []byte) (string, error) {
+			var req struct {
+				ProductSlug string `json:"product_slug"`
+				TargetType  string `json:"target_type"`
+			}
+			if err := json.Unmarshal(payload, &req); err != nil {
+				return "", err
+			}
+			return releaseLockKey(req.ProductSlug, req.TargetType), nil
+		})
+	})
+	mux.HandleFunc("/v1/releases/promote", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		payload, err := io.ReadAll(r.Body)
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+			return
+		}
+		var req releasePromoteRequest
+		if err := json.Unmarshal(payload, &req); err != nil {
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+			return
+		}
+		lockKey := releaseLockKey(req.ProductSlug, req.TargetType)
+		if !locker.Acquire(lockKey) {
+			httpx.WriteJSON(w, http.StatusConflict, map[string]string{"error": "release operation already in progress"})
+			return
+		}
+		defer locker.Release(lockKey)
+
+		deploymentPayload, _ := json.Marshal(map[string]any{
+			"target_version_id": req.TargetVersionID,
+			"environment":       req.Environment,
+			"status":            "deployed",
+		})
+		if _, _, err := performUpgradeRequest(r, manager, httpClient, http.MethodPost, "/v1/deployments", deploymentPayload); err != nil {
+			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+			return
+		}
+		switchPayload, _ := json.Marshal(map[string]any{
+			"product_slug":  req.ProductSlug,
+			"target_type":   req.TargetType,
+			"to_version_id": req.TargetVersionID,
+			"operator":      req.Operator,
+		})
+		status, responseBody, err := performUpgradeRequest(r, manager, httpClient, http.MethodPost, "/v1/switches", switchPayload)
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = w.Write(responseBody)
 	})
 
 	return mux
@@ -236,6 +332,102 @@ func proxyUpgradeRequest(
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(responseBody)
+}
+
+func proxyLockedUpgradeRequest(
+	w http.ResponseWriter,
+	r *http.Request,
+	manager *runtime.Manager,
+	httpClient *http.Client,
+	locker *operationLocker,
+	expectedMethod string,
+	path string,
+	lockKeyFn func([]byte) (string, error),
+) {
+	if r.Method != expectedMethod {
+		httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	lockKey, err := lockKeyFn(payload)
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if !locker.Acquire(lockKey) {
+		httpx.WriteJSON(w, http.StatusConflict, map[string]string{"error": "release operation already in progress"})
+		return
+	}
+	defer locker.Release(lockKey)
+
+	status, responseBody, err := performUpgradeRequest(r, manager, httpClient, expectedMethod, path, payload)
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = w.Write(responseBody)
+}
+
+func performUpgradeRequest(
+	r *http.Request,
+	manager *runtime.Manager,
+	httpClient *http.Client,
+	method string,
+	path string,
+	payload []byte,
+) (int, []byte, error) {
+	upgradeService, ok := findService(manager.List(), "upgrade-service")
+	if !ok {
+		return 0, nil, io.EOF
+	}
+
+	var body io.Reader = http.NoBody
+	if method != http.MethodGet {
+		body = bytes.NewReader(payload)
+	}
+	req, err := http.NewRequestWithContext(r.Context(), method, upgradeService.Address+path, body)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, nil, err
+	}
+	return resp.StatusCode, responseBody, nil
+}
+
+func (l *operationLocker) Acquire(key string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.locks[key] {
+		return false
+	}
+	l.locks[key] = true
+	return true
+}
+
+func (l *operationLocker) Release(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.locks, key)
+}
+
+func releaseLockKey(productSlug, targetType string) string {
+	return productSlug + ":" + targetType
 }
 
 func findService(services []runtime.ManagedService, name string) (runtime.ManagedService, bool) {

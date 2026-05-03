@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"appfactory/service-manager/internal/runtime"
 )
@@ -206,5 +208,110 @@ func TestCreateDeploymentProxyUsesUpgradeService(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "\"environment\":\"compose-stage\"") {
 		t.Fatalf("expected proxied create deployment response, got %s", rec.Body.String())
+	}
+}
+
+func TestPromoteReleaseOrchestratesDeploymentAndSwitch(t *testing.T) {
+	var deploymentCalled atomic.Bool
+	var switchCalled atomic.Bool
+
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/deployments" && r.Method == http.MethodPost:
+			deploymentCalled.Store(true)
+			_, _ = w.Write([]byte(`{"id":"deployment-2","environment":"compose-promote","status":"deployed"}`))
+		case r.URL.Path == "/v1/switches" && r.Method == http.MethodPost:
+			if !deploymentCalled.Load() {
+				t.Fatalf("switch was called before deployment")
+			}
+			switchCalled.Store(true)
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"target_type":"client","latest_version":"26.2.20.09"}`))
+		default:
+			t.Fatalf("unexpected call %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer upgradeService.Close()
+
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/releases/promote",
+		bytes.NewBufferString(`{"product_slug":"shared-client","target_type":"client","target_version_id":"release-2","environment":"compose-promote","operator":"service-manager"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected promote status 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !deploymentCalled.Load() || !switchCalled.Load() {
+		t.Fatalf("expected promote to call deployment and switch, got body=%s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "\"latest_version\":\"26.2.20.09\"") {
+		t.Fatalf("expected promote response to include switched target, got %s", rec.Body.String())
+	}
+}
+
+func TestMutatingReleaseActionsConflictWhenLocked(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/switches" || r.Method != http.MethodPost {
+			t.Fatalf("unexpected call %s %s", r.Method, r.URL.Path)
+		}
+		entered <- struct{}{}
+		<-release
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"target_type":"client","latest_version":"26.2.20.10"}`))
+	}))
+	defer upgradeService.Close()
+
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
+
+	firstDone := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"/v1/releases/switch",
+			bytes.NewBufferString(`{"product_slug":"shared-client","target_type":"client","to_version_id":"rv-1","operator":"service-manager"}`),
+		)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		firstDone <- rec
+	}()
+
+	<-entered
+	secondReq := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/releases/switch",
+		bytes.NewBufferString(`{"product_slug":"shared-client","target_type":"client","to_version_id":"rv-2","operator":"service-manager"}`),
+	)
+	secondReq.Header.Set("Content-Type", "application/json")
+	secondRec := httptest.NewRecorder()
+	router.ServeHTTP(secondRec, secondReq)
+
+	if secondRec.Code != http.StatusConflict {
+		t.Fatalf("expected lock conflict status 409, got %d body=%s", secondRec.Code, secondRec.Body.String())
+	}
+
+	close(release)
+	select {
+	case firstRec := <-firstDone:
+		if firstRec.Code != http.StatusCreated {
+			t.Fatalf("expected first request to succeed, got %d body=%s", firstRec.Code, firstRec.Body.String())
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for first request")
 	}
 }

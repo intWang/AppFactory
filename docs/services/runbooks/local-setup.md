@@ -78,8 +78,12 @@ Service-manager release control endpoints:
 - `GET http://localhost:18080/v1/releases/rollbacks/history`
 - `POST http://localhost:18080/v1/releases/create`
 - `POST http://localhost:18080/v1/deployments/create`
+- `POST http://localhost:18080/v1/releases/promote`
 - `POST http://localhost:18080/v1/releases/switch`
 - `POST http://localhost:18080/v1/releases/rollback`
+
+Mutating release actions are guarded by an in-process lock keyed by `product_slug + target_type`.
+If another release operation is already running for the same target, the service-manager returns `409 Conflict`.
 
 ## Current Blockers
 
