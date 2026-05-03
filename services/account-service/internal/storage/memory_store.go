@@ -1,6 +1,11 @@
 package storage
 
-import "appfactory/account-service/internal/domain"
+import (
+	"context"
+	"time"
+
+	"appfactory/account-service/internal/domain"
+)
 
 type MemoryStore struct {
 	CurrentUser domain.User
@@ -20,4 +25,28 @@ func NewMemoryStore() *MemoryStore {
 			{Key: "wechat", Enabled: false, Available: true},
 		},
 	}
+}
+
+func (s *MemoryStore) Register(_ context.Context, req domain.RegisterRequest) (domain.User, error) {
+	user := domain.User{
+		ID:       "user-local-created",
+		Email:    req.Email,
+		Nickname: req.Nickname,
+	}
+	s.CurrentUser = user
+	return user, nil
+}
+
+func (s *MemoryStore) GetCurrentUser(_ context.Context) (domain.User, error) {
+	if s.CurrentUser.ID == "" {
+		s.CurrentUser = domain.User{
+			ID:       "user-local-seeded",
+			Email:    "local@example.com",
+			Nickname: "Local User",
+		}
+	}
+	if s.CurrentUser.ID == "" {
+		s.CurrentUser.ID = time.Now().Format(time.RFC3339Nano)
+	}
+	return s.CurrentUser, nil
 }

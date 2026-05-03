@@ -3,6 +3,7 @@ http_port: "8081"
 environment: local
 postgres_dsn: postgres://appfactory:appfactory@localhost:5432/appfactory?sslmode=disable
 redis_addr: localhost:6379
+storage_mode: postgres
 session_mode: local-memory
 provider_registry:
   - google

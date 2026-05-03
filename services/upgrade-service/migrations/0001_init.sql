@@ -1,10 +1,10 @@
-CREATE TABLE release_channels (
+CREATE TABLE IF NOT EXISTS release_channels (
   id TEXT PRIMARY KEY,
   channel_key TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE release_versions (
+CREATE TABLE IF NOT EXISTS release_versions (
   id TEXT PRIMARY KEY,
   product_slug TEXT NOT NULL,
   target_type TEXT NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE release_versions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE deployment_records (
+CREATE TABLE IF NOT EXISTS deployment_records (
   id TEXT PRIMARY KEY,
   target_version_id TEXT NOT NULL REFERENCES release_versions(id),
   environment TEXT NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE deployment_records (
   status TEXT NOT NULL
 );
 
-CREATE TABLE active_targets (
+CREATE TABLE IF NOT EXISTS active_targets (
   id TEXT PRIMARY KEY,
   product_slug TEXT NOT NULL,
   target_type TEXT NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE active_targets (
   UNIQUE (product_slug, target_type)
 );
 
-CREATE TABLE switch_events (
+CREATE TABLE IF NOT EXISTS switch_events (
   id TEXT PRIMARY KEY,
   product_slug TEXT NOT NULL,
   target_type TEXT NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE switch_events (
   operator TEXT NOT NULL
 );
 
-CREATE TABLE rollback_events (
+CREATE TABLE IF NOT EXISTS rollback_events (
   id TEXT PRIMARY KEY,
   product_slug TEXT NOT NULL,
   target_type TEXT NOT NULL,

@@ -1,17 +1,21 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
-	"appfactory/shared-go/httpx"
 	sharedhealth "appfactory/shared-go/health"
+	"appfactory/shared-go/httpx"
 	"appfactory/upgrade-service/internal/domain"
 	"appfactory/upgrade-service/internal/storage"
 )
 
 func NewRouter() http.Handler {
-	store := storage.NewMemoryStore()
+	return NewRouterWithRepository(storage.NewMemoryStore())
+}
+
+func NewRouterWithRepository(store storage.Repository) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -34,9 +38,16 @@ func NewRouter() http.Handler {
 			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 			return
 		}
-		mode := store.ClientTarget.UpgradeModeForBuild(req.CurrentBuild)
+		target, err := store.GetTarget(r.Context(), "client")
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		target.CurrentVersion = req.CurrentVersion
+		target.CurrentBuild = req.CurrentBuild
+		mode := target.UpgradeModeForBuild(req.CurrentBuild)
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{
-			"target":        store.ClientTarget,
+			"target":        target,
 			"upgrade_mode":  mode,
 			"force_upgrade": mode == "forced",
 		})
@@ -51,9 +62,16 @@ func NewRouter() http.Handler {
 			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 			return
 		}
-		mode := store.ServiceTarget.UpgradeModeForBuild(req.CurrentBuild)
+		target, err := store.GetTarget(r.Context(), "service")
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		target.CurrentVersion = req.CurrentVersion
+		target.CurrentBuild = req.CurrentBuild
+		mode := target.UpgradeModeForBuild(req.CurrentBuild)
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{
-			"target":        store.ServiceTarget,
+			"target":        target,
 			"upgrade_mode":  mode,
 			"force_upgrade": mode == "forced",
 		})
@@ -71,11 +89,40 @@ func NewRouter() http.Handler {
 		httpx.WriteJSON(w, http.StatusCreated, map[string]string{"message": "rollback placeholder"})
 	})
 	mux.HandleFunc("/v1/targets/active", func(w http.ResponseWriter, r *http.Request) {
+		client, err := store.GetTarget(r.Context(), "client")
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		service, err := store.GetTarget(r.Context(), "service")
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{
-			"client":  store.ClientTarget,
-			"service": store.ServiceTarget,
+			"client":  client,
+			"service": service,
 		})
 	})
 
 	return mux
+}
+
+type Config struct {
+	ServiceName           string `yaml:"service_name"`
+	HTTPPort              string `yaml:"http_port"`
+	Environment           string `yaml:"environment"`
+	PostgresDSN           string `yaml:"postgres_dsn"`
+	RedisAddr             string `yaml:"redis_addr"`
+	ForcedUpgradeBuildGap int    `yaml:"forced_upgrade_build_gap"`
+	VersionFormat         string `yaml:"version_format"`
+	StorageMode           string `yaml:"storage_mode"`
+}
+
+func NewPostgresRouter(ctx context.Context, cfg Config) (http.Handler, func(), error) {
+	store, err := storage.NewPostgresStore(ctx, cfg.PostgresDSN, cfg.ForcedUpgradeBuildGap)
+	if err != nil {
+		return nil, nil, err
+	}
+	return NewRouterWithRepository(store), func() {}, nil
 }

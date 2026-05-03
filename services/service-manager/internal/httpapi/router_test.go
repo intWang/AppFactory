@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"appfactory/service-manager/internal/runtime"
 )
 
 func TestServicesEndpointReturnsRegisteredServices(t *testing.T) {
@@ -28,9 +30,10 @@ func TestHealthEndpointAggregatesReachableServices(t *testing.T) {
 	}))
 	defer healthyService.Close()
 
-	router := NewRouterWithRegistry([]ServiceRuntime{
-		{Name: "account-service", Address: healthyService.URL, Status: "registered", Profile: "local"},
-	})
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "account-service", Command: "sleep 30", WorkDir: ".", Address: healthyService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/services/health", nil)
 	rec := httptest.NewRecorder()

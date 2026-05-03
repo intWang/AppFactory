@@ -1,6 +1,11 @@
 package storage
 
-import "appfactory/upgrade-service/internal/domain"
+import (
+	"context"
+	"fmt"
+
+	"appfactory/upgrade-service/internal/domain"
+)
 
 type MemoryStore struct {
 	ClientTarget  domain.VersionTarget
@@ -27,5 +32,16 @@ func NewMemoryStore() *MemoryStore {
 			LatestBuild:       3,
 			ForceUpgradeAfter: 3,
 		},
+	}
+}
+
+func (s *MemoryStore) GetTarget(_ context.Context, targetType string) (domain.VersionTarget, error) {
+	switch targetType {
+	case "client":
+		return s.ClientTarget, nil
+	case "service":
+		return s.ServiceTarget, nil
+	default:
+		return domain.VersionTarget{}, fmt.Errorf("unknown target type: %s", targetType)
 	}
 }

@@ -6,13 +6,15 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"appfactory/account-service/internal/storage"
 )
 
 func TestProvidersEndpointReturnsConfiguredProviders(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/v1/providers", nil)
 	rec := httptest.NewRecorder()
 
-	NewRouter().ServeHTTP(rec, req)
+	NewRouterWithDependencies(storage.NewMemoryStore(), defaultProviders()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", rec.Code)
@@ -32,7 +34,7 @@ func TestRegisterEndpointReturnsCreatedAccountFromRequestBody(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
-	NewRouter().ServeHTTP(rec, req)
+	NewRouterWithDependencies(storage.NewMemoryStore(), defaultProviders()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected status 201, got %d", rec.Code)

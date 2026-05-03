@@ -10,9 +10,10 @@ echo "  - upgrade-service"
 echo "  - service-manager"
 echo
 echo "Native mode examples:"
-echo "  cd services/account-service && go run ./cmd/account-service"
-echo "  cd services/upgrade-service && go run ./cmd/upgrade-service"
-echo "  cd services/service-manager && go run ./cmd/service-manager"
+echo "  sh ops/scripts/build-services.sh"
+echo "  cd services/account-service && ./bin/account-service"
+echo "  cd services/upgrade-service && ./bin/upgrade-service"
+echo "  cd services/service-manager && ./bin/service-manager"
 echo
 echo "Compose mode example:"
 echo "  docker compose -f ops/compose/docker-compose.yml up --build"

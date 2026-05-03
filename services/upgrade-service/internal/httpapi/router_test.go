@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"appfactory/upgrade-service/internal/storage"
 )
 
 func TestCheckClientUsesRequestBuildForUpgradeDecision(t *testing.T) {
@@ -17,7 +19,7 @@ func TestCheckClientUsesRequestBuildForUpgradeDecision(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
-	NewRouter().ServeHTTP(rec, req)
+	NewRouterWithRepository(storage.NewMemoryStore()).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", rec.Code)

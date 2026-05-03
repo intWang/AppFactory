@@ -1,15 +1,25 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"appfactory/account-service/internal/httpapi"
+	sharedconfig "appfactory/shared-go/config"
 )
 
 func main() {
-	log.Println("account-service listening on :8081")
-	if err := http.ListenAndServe(":8081", httpapi.NewRouter()); err != nil {
+	cfg, err := sharedconfig.LoadYAML[httpapi.Config]("configs/local.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+	router, _, err := httpapi.NewPostgresRouter(context.Background(), cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("account-service listening on :%s", cfg.HTTPPort)
+	if err := http.ListenAndServe(":"+cfg.HTTPPort, router); err != nil {
 		log.Fatal(err)
 	}
 }

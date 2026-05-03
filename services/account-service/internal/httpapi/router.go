@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -11,7 +12,10 @@ import (
 )
 
 func NewRouter() http.Handler {
-	store := storage.NewMemoryStore()
+	return NewRouterWithDependencies(storage.NewMemoryStore(), defaultProviders())
+}
+
+func NewRouterWithDependencies(store storage.Repository, providers []domain.Provider) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -34,10 +38,10 @@ func NewRouter() http.Handler {
 			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 			return
 		}
-		user := domain.User{
-			ID:       "user-local-created",
-			Email:    req.Email,
-			Nickname: req.Nickname,
+		user, err := store.Register(r.Context(), req)
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
 		}
 		httpx.WriteJSON(w, http.StatusCreated, domain.RegisterResponse{
 			Status: "registered",
@@ -55,13 +59,49 @@ func NewRouter() http.Handler {
 		})
 	})
 	mux.HandleFunc("/v1/accounts/me", func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteJSON(w, http.StatusOK, store.CurrentUser)
+		user, err := store.GetCurrentUser(r.Context())
+		if err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, user)
 	})
 	mux.HandleFunc("/v1/providers", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{
-			"providers": store.Providers,
+			"providers": providers,
 		})
 	})
 
 	return mux
+}
+
+func defaultProviders() []domain.Provider {
+	return []domain.Provider{
+		{Key: "google", Enabled: false, Available: true},
+		{Key: "apple", Enabled: false, Available: true},
+		{Key: "wechat", Enabled: false, Available: true},
+	}
+}
+
+type Config struct {
+	ServiceName      string   `yaml:"service_name"`
+	HTTPPort         string   `yaml:"http_port"`
+	Environment      string   `yaml:"environment"`
+	PostgresDSN      string   `yaml:"postgres_dsn"`
+	RedisAddr        string   `yaml:"redis_addr"`
+	SessionMode      string   `yaml:"session_mode"`
+	StorageMode      string   `yaml:"storage_mode"`
+	ProviderRegistry []string `yaml:"provider_registry"`
+}
+
+func NewPostgresRouter(ctx context.Context, cfg Config) (http.Handler, func(), error) {
+	store, err := storage.NewPostgresStore(ctx, cfg.PostgresDSN)
+	if err != nil {
+		return nil, nil, err
+	}
+	providers := make([]domain.Provider, 0, len(cfg.ProviderRegistry))
+	for _, key := range cfg.ProviderRegistry {
+		providers = append(providers, domain.Provider{Key: key, Available: true, Enabled: false})
+	}
+	return NewRouterWithDependencies(store, providers), func() {}, nil
 }

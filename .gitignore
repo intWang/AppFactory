@@ -13,3 +13,5 @@
 !templates/flutter_product_shell/build/outputs/
 !templates/flutter_product_shell/build/outputs/.gitkeep
 !templates/flutter_tool_app/build/
+
+services/**/bin/

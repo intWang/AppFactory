@@ -4,8 +4,10 @@ environment: local
 default_profile: local
 services:
   - name: account-service
-    command: go run ./cmd/account-service
+    command: ./bin/account-service
+    workdir: ../account-service
     address: http://localhost:8081
   - name: upgrade-service
-    command: go run ./cmd/upgrade-service
+    command: ./bin/upgrade-service
+    workdir: ../upgrade-service
     address: http://localhost:8082

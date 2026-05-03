@@ -5,3 +5,4 @@ postgres_dsn: postgres://appfactory:appfactory@localhost:5432/appfactory?sslmode
 redis_addr: localhost:6379
 forced_upgrade_build_gap: 3
 version_format: YY.Q.0M.BB
+storage_mode: postgres
