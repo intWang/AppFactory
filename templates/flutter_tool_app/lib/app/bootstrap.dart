@@ -21,7 +21,7 @@ Future<AppServices> bootstrapApp() async {
   registry.register<GrowthEntryPoints>(const GrowthEntryPoints());
 
   const AppConfig config = AppConfig(appName: 'App Factory Tool App');
-  return const AppServices(
+  return AppServices(
     config: config,
     registry: registry,
   );

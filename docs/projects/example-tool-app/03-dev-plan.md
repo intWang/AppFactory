@@ -10,7 +10,7 @@ example-tool-app
 Derived from the example architecture design.
 
 ## Environment Check
-Flutter and platform toolchains must be present before build verification. Current local status: `flutter` command not found.
+Flutter and platform toolchains are available. Verified with `flutter --version`, `flutter doctor -v`, and project-level `flutter test`.
 
 ## TDD Strategy
 Write failing tests for bootstrap, capability resolution, and widget rendering before implementation.
@@ -22,7 +22,7 @@ Write failing tests for bootstrap, capability resolution, and widget rendering b
 Flutter template project under `templates/flutter_tool_app/`.
 
 ## Known Blockers
-`flutter test` is currently blocked because the `flutter` command is not available on this machine.
+No active environment blockers.
 
 ## Gate Result
-Blocked by environment
+Pass
