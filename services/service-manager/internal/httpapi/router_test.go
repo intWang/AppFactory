@@ -140,3 +140,71 @@ func TestReleaseHistoryProxyUsesUpgradeService(t *testing.T) {
 		t.Fatalf("expected proxied release history response, got %s", rec.Body.String())
 	}
 }
+
+func TestCreateReleaseProxyUsesUpgradeService(t *testing.T) {
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/releases" {
+			t.Fatalf("expected /v1/releases, got %s", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		_, _ = w.Write([]byte(`{"id":"release-1","version_label":"26.2.20.08"}`))
+	}))
+	defer upgradeService.Close()
+
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/releases/create",
+		bytes.NewBufferString(`{"product_slug":"shared-client","target_type":"client","version_label":"26.2.20.08","build_number":8,"upgrade_url":"https://example.com/client/26.2.20.08"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK && rec.Code != http.StatusCreated {
+		t.Fatalf("expected proxied success status, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "\"version_label\":\"26.2.20.08\"") {
+		t.Fatalf("expected proxied create release response, got %s", rec.Body.String())
+	}
+}
+
+func TestCreateDeploymentProxyUsesUpgradeService(t *testing.T) {
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/deployments" {
+			t.Fatalf("expected /v1/deployments, got %s", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		_, _ = w.Write([]byte(`{"id":"deployment-1","environment":"compose-stage","status":"deployed"}`))
+	}))
+	defer upgradeService.Close()
+
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManager(manager)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/deployments/create",
+		bytes.NewBufferString(`{"target_version_id":"release-1","environment":"compose-stage","status":"deployed"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK && rec.Code != http.StatusCreated {
+		t.Fatalf("expected proxied success status, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "\"environment\":\"compose-stage\"") {
+		t.Fatalf("expected proxied create deployment response, got %s", rec.Body.String())
+	}
+}

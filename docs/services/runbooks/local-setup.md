@@ -76,6 +76,8 @@ Service-manager release control endpoints:
 - `GET http://localhost:18080/v1/deployments/history`
 - `GET http://localhost:18080/v1/releases/switches/history`
 - `GET http://localhost:18080/v1/releases/rollbacks/history`
+- `POST http://localhost:18080/v1/releases/create`
+- `POST http://localhost:18080/v1/deployments/create`
 - `POST http://localhost:18080/v1/releases/switch`
 - `POST http://localhost:18080/v1/releases/rollback`
 

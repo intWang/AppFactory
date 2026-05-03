@@ -147,8 +147,14 @@ func NewRouterWithManager(manager *runtime.Manager) http.Handler {
 	mux.HandleFunc("/v1/releases/history", func(w http.ResponseWriter, r *http.Request) {
 		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/releases")
 	})
+	mux.HandleFunc("/v1/releases/create", func(w http.ResponseWriter, r *http.Request) {
+		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodPost, "/v1/releases")
+	})
 	mux.HandleFunc("/v1/deployments/history", func(w http.ResponseWriter, r *http.Request) {
 		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/deployments")
+	})
+	mux.HandleFunc("/v1/deployments/create", func(w http.ResponseWriter, r *http.Request) {
+		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodPost, "/v1/deployments")
 	})
 	mux.HandleFunc("/v1/releases/switches/history", func(w http.ResponseWriter, r *http.Request) {
 		proxyUpgradeRequest(w, r, manager, httpClient, http.MethodGet, "/v1/switches")
