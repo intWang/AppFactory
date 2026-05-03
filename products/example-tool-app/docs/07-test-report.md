@@ -15,6 +15,9 @@ macOS 14.5 with Flutter 3.41.9, Dart 3.11.5, Xcode 15.4, Android SDK 37.0.0, Chr
 ## Unit Test Review
 Core-path unit and widget tests cover bootstrap, capability resolution, and shell rendering.
 
+## Design Consistency Review
+Current implementation follows the single-screen baseline and product-local UX specification. No visual export review has been performed yet because Figma exports are still placeholders.
+
 ## Results Summary
 Executed `flutter test` in `products/example-tool-app/` and all 3 tests passed.
 

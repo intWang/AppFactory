@@ -7,7 +7,7 @@ Example Tool App
 example-tool-app
 
 ## Input Source
-Derived from the example PRD.
+Derived from the final example PRD, UX specification, and design references.
 
 ## Architecture Goals
 Validate the shell, capability registry, and minimal feature rendering path.
@@ -37,7 +37,7 @@ App services are created at startup and passed into the shell.
 Feature code consumes bootstrap services and does not reach directly into platform-sensitive APIs.
 
 ## Risks
-Flutter toolchain availability may block verification.
+No active toolchain risk. Design exports are still placeholders until a real Figma file is attached.
 
 ## Gate Result
 Pass

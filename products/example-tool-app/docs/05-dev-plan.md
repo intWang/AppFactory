@@ -7,7 +7,7 @@ Example Tool App
 example-tool-app
 
 ## Input Source
-Derived from the example architecture design.
+Derived from the example architecture design and UX specification.
 
 ## Environment Check
 Flutter and platform toolchains are available. Verified with `flutter --version`, `flutter doctor -v`, and project-level `flutter test`.

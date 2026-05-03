@@ -31,6 +31,7 @@ Every product must include at least:
 - `test/`
 - `config/`
 - `docs/`
+- `design/`
 - `build/outputs/`
 
 Recommended structure:
@@ -49,6 +50,9 @@ products/<product-slug>/
   config/
   assets/
   docs/
+  design/
+    figma-link.md
+    exports/
   build/
     outputs/
 ```
@@ -57,19 +61,29 @@ products/<product-slug>/
 
 - Build outputs must be written to the owning product's `build/outputs/`.
 - Test reports, screenshots, and validation records must be written to the owning product's `docs/` or matching archive location.
+- Figma links, exported design screens, and UX specs must stay with the owning product.
 - Multiple products must not share a single output directory.
 
 ## Documentation and Test Ownership
 
 - Product docs stay with the product.
+- Product design assets stay with the product.
 - Product tests stay with the product.
 - Public package tests stay with the public package.
 - Test files and docs must not be mixed across products.
 
 ## Role Alignment
 
+### UD
+
+- Convert `01-prd-draft` into interaction-design deliverables before architecture starts.
+- Maintain product-local Figma references, exported screens, and UX specifications.
+- Record design decisions that PM must write back into the final PRD.
+- Surface reusable UI patterns to AM before shared-component decisions are made.
+
 ### AM
 
+- Use the final PRD plus UD deliverables as architecture inputs.
 - Decide whether new code belongs in `packages/`, `products/<product-slug>/`, or the product integration layer.
 - Reject abstractions that carry product-specific semantics into public packages.
 - Protect cross-product isolation and dependency direction.
@@ -80,11 +94,13 @@ products/<product-slug>/
 - Change `packages/` only when the architecture explicitly calls for shared extraction.
 - Prevent cross-product imports and misplaced outputs.
 - Keep build, test, and doc artifacts inside the owning product boundary.
+- Implement UI against UD's Figma and exported design references, not from PRD alone.
 
 ### QA
 
 - Verify repository-boundary compliance in addition to feature correctness.
 - Check import boundaries, test placement, doc placement, and build-output placement.
+- Check design consistency against UD exports and UX specifications.
 - Reject work that violates product isolation or artifact ownership rules.
 
 ## Non-Compliant Examples
@@ -95,4 +111,4 @@ The following are not allowed:
 - Shared logic copied into multiple products without AM review.
 - Product-specific flows moved into `packages/`.
 - Build outputs written outside the product's own output path.
-- Product docs or tests stored outside the product directory.
+- Product docs, design assets, or tests stored outside the product directory.

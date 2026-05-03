@@ -18,12 +18,13 @@ Review the PRD from a technical perspective and convert it into a modular Flutte
 
 ## Output Requirements
 
-- Write `02-architecture.md`.
-- Review the PRD for technical risks.
+- Write `products/<product-slug>/docs/04-architecture.md`.
+- Review the final PRD and UX assets for technical risks.
 - Select capability modules before feature modules.
 - Define App Shell, capability boundaries, and feature boundaries.
 - Push requirement revisions back to PM when reuse or safety is threatened.
 - State where each new responsibility belongs in the monorepo.
+- Use `products/<product-slug>/docs/03-prd-final.md`, `products/<product-slug>/docs/02-ux-spec.md`, `products/<product-slug>/design/figma-link.md`, and exported screens as inputs.
 
 ## Required Sections
 
@@ -33,6 +34,7 @@ Review the PRD from a technical perspective and convert it into a modular Flutte
 - `## Capability Modules`
 - `## Feature Modules`
 - `## Monorepo Placement`
+- `## UX-Driven Technical Risks`
 - `## Route Strategy`
 - `## State Strategy`
 - `## Data Flow`

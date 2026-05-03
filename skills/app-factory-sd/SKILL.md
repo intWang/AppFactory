@@ -20,10 +20,12 @@ Check the development environment, implement the app against the approved archit
 - Do not introduce direct imports from one product into another product.
 - Keep build outputs under the owning product's `build/outputs/`.
 - Keep product docs and tests inside the owning product directory.
+- Implement against `products/<product-slug>/docs/04-architecture.md`, `products/<product-slug>/docs/02-ux-spec.md`, `products/<product-slug>/design/figma-link.md`, and exported screens.
+- Do not invent UI structure from the PRD alone when UD artifacts exist.
 
 ## Required Outputs
 
-- `03-dev-plan.md`
+- `products/<product-slug>/docs/05-dev-plan.md`
 - Buildable Flutter project changes
 - Automated tests
 - Verification commands

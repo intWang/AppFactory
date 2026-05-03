@@ -57,6 +57,7 @@ This skill receives user requirements, initializes project state, routes work th
 ### 4.2 Role Layer
 
 - `app-factory-pm`
+- `app-factory-ud`
 - `app-factory-am`
 - `app-factory-sd`
 - `app-factory-qa`
@@ -205,7 +206,7 @@ Safety is a first-class design requirement.
 
 The main V1 workflow is:
 
-`User Requirement -> PM PRD -> AM Architecture -> SD Implementation -> QA Verification`
+`User Requirement -> PM Draft PRD -> UD UX Design -> PM Final PRD -> AM Architecture -> SD Implementation -> QA Verification`
 
 Each stage must generate a standard artifact and pass a minimal quality gate before the orchestrator advances automatically.
 
@@ -240,8 +241,9 @@ Inputs:
 - target platform assumptions
 - tool-app scope rules
 
-Outputs:
+First-pass outputs:
 
+- `products/<product-slug>/docs/01-prd-draft.md`
 - product overview
 - target users
 - user pain points
@@ -255,15 +257,39 @@ Outputs:
 - explicit non-goals
 - points requiring architecture review
 
-AM may reject a vague PRD and route it back for revision.
+Final outputs after UD review:
 
-### 10.3 AM Output
+- `products/<product-slug>/docs/03-prd-final.md`
+- UX changes from UD
+- final page inventory
+- final interaction constraints
+
+### 10.3 UD Output
+
+Produced by UD.
+
+Inputs:
+
+- drafted PRD
+- product scope assumptions
+
+Outputs:
+
+- `products/<product-slug>/docs/02-ux-spec.md`
+- `products/<product-slug>/design/figma-link.md`
+- exported design screens under `products/<product-slug>/design/exports/`
+- PM write-back items for final PRD
+
+### 10.4 AM Output
 
 Produced by AM.
 
 Inputs:
 
-- approved PRD
+- approved final PRD
+- UX specification
+- Figma link
+- exported design screens
 - capability catalog
 - template boundaries
 
@@ -282,14 +308,17 @@ Outputs:
 - safety boundary statement
 - PRD revision requests
 - technical risks and tradeoffs
+- monorepo placement decisions
 
-### 10.4 SD Output
+### 10.5 SD Output
 
 Produced by SD.
 
 Inputs:
 
 - approved architecture
+- UX specification
+- Figma link and exported screens
 - Flutter base template
 - TDD rules
 - testing baseline
@@ -307,13 +336,15 @@ Outputs:
 
 SD must report blockers explicitly if the environment is not ready.
 
-### 10.5 QA Output
+### 10.6 QA Output
 
 Produced by QA.
 
 Inputs:
 
 - final PRD
+- UX specification
+- design link and exported screens
 - final architecture
 - codebase and test assets
 - executable build
@@ -334,6 +365,7 @@ Outputs:
 Only three formal rework paths are allowed in V1:
 
 - AM can send work back to PM when the requirement is unsafe, infeasible, too costly, or damaging to reuse.
+- UD can send work back to PM when interaction design exposes requirement ambiguity or missing product states.
 - QA can send work back to SD when implementation, build quality, or test coverage is insufficient.
 - QA can send work back to AM when failures reveal architecture-level issues that cannot be solved as isolated defects.
 
@@ -347,6 +379,7 @@ The orchestrator should maintain an explicit state machine.
 
 - `intake`
 - `producting`
+- `designing`
 - `architecting`
 - `developing`
 - `testing`
@@ -356,11 +389,12 @@ The orchestrator should maintain an explicit state machine.
 
 ### 12.2 Nominal Flow
 
-`intake -> producting -> architecting -> developing -> testing -> passed`
+`intake -> producting -> designing -> producting -> architecting -> developing -> testing -> passed`
 
 ### 12.3 Exception Flow
 
 - `architecting -> needs-rework -> producting`
+- `designing -> needs-rework -> producting`
 - `testing -> needs-rework -> developing`
 - `testing -> needs-rework -> architecting`
 - `any state -> blocked`
@@ -394,14 +428,22 @@ The orchestrator must be able to resume from the last recorded project state and
 - non-goals are explicit
 - monetization reserve exists
 
-### 13.2 AM Gate
+### 13.2 UD Gate
+
+- core user flow is covered
+- key states are defined
+- figma link exists
+- ux spec exists
+- PM write-back items are explicit
+
+### 13.3 AM Gate
 
 - capability module decisions exist
 - feature split exists
 - route, state, and data flow are described
 - technical risks are identified
 
-### 13.3 SD Gate
+### 13.4 SD Gate
 
 - environment check is complete
 - project compiles
@@ -409,7 +451,7 @@ The orchestrator must be able to resume from the last recorded project state and
 - automated tests run
 - build output is handoff-ready
 
-### 13.4 QA Gate
+### 13.5 QA Gate
 
 - test cases exist
 - unit test review is concluded
@@ -441,6 +483,18 @@ app-factory/
       config/
       assets/
       docs/
+        01-prd-draft.md
+        02-ux-spec.md
+        03-prd-final.md
+        04-architecture.md
+        05-dev-plan.md
+        06-test-cases.md
+        07-test-report.md
+        08-release-gate.md
+        09-retro-input.md
+      design/
+        figma-link.md
+        exports/
       build/
         outputs/
 
@@ -499,13 +553,17 @@ Example:
 Each product directory should contain:
 
 - `products/<product-slug>/docs/00-intake.md`
-- `products/<product-slug>/docs/01-prd.md`
-- `products/<product-slug>/docs/02-architecture.md`
-- `products/<product-slug>/docs/03-dev-plan.md`
-- `products/<product-slug>/docs/04-test-cases.md`
-- `products/<product-slug>/docs/05-test-report.md`
-- `products/<product-slug>/docs/06-release-gate.md`
-- `products/<product-slug>/docs/07-retro-input.md`
+- `products/<product-slug>/docs/01-prd-draft.md`
+- `products/<product-slug>/docs/02-ux-spec.md`
+- `products/<product-slug>/docs/03-prd-final.md`
+- `products/<product-slug>/docs/04-architecture.md`
+- `products/<product-slug>/docs/05-dev-plan.md`
+- `products/<product-slug>/docs/06-test-cases.md`
+- `products/<product-slug>/docs/07-test-report.md`
+- `products/<product-slug>/docs/08-release-gate.md`
+- `products/<product-slug>/docs/09-retro-input.md`
+- `products/<product-slug>/design/figma-link.md`
+- `products/<product-slug>/design/exports/`
 
 These files provide deterministic handoff points between skills and future automation.
 

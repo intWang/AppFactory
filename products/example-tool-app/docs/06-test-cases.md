@@ -7,7 +7,7 @@ Example Tool App
 example-tool-app
 
 ## Input Source
-Derived from the example PRD and architecture.
+Derived from the final example PRD, UX specification, and architecture.
 
 ## Test Scope
 Bootstrap flow, capability registry, and basic home-screen rendering.
