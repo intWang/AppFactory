@@ -90,7 +90,14 @@ If another release operation is already running for the same target, the service
 Service-manager persists release operation snapshots to:
 
 - native mode: `services/service-manager/data/service-manager-operations.json`
-- compose mode: `/app/data/service-manager-operations.json` inside the `compose-service-manager-1` container
+- compose mode: PostgreSQL table `service_manager_operations` in database `appfactory`
+
+Example compose verification:
+
+```bash
+docker exec compose-postgres-1 psql -U appfactory -d appfactory \
+  -c "SELECT operation, product_slug, target_type, status, environment FROM service_manager_operations ORDER BY started_at DESC LIMIT 5;"
+```
 
 ## Current Blockers
 

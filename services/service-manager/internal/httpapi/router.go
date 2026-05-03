@@ -2,8 +2,10 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -14,6 +16,7 @@ import (
 	"appfactory/service-manager/internal/runtime"
 	sharedhealth "appfactory/shared-go/health"
 	"appfactory/shared-go/httpx"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ServiceRuntime struct {
@@ -36,6 +39,7 @@ type operationLocker struct {
 }
 
 type releaseOperationStatus struct {
+	ID              string    `json:"id,omitempty"`
 	Operation       string    `json:"operation"`
 	ProductSlug     string    `json:"product_slug"`
 	TargetType      string    `json:"target_type"`
@@ -53,6 +57,7 @@ type operationTracker struct {
 	current map[string]releaseOperationStatus
 	history []releaseOperationStatus
 	path    string
+	pool    *pgxpool.Pool
 }
 
 type releasePromoteRequest struct {
@@ -61,6 +66,16 @@ type releasePromoteRequest struct {
 	TargetVersionID string `json:"target_version_id"`
 	Environment     string `json:"environment"`
 	Operator        string `json:"operator"`
+}
+
+type Config struct {
+	ServiceName        string `yaml:"service_name"`
+	HTTPPort           string `yaml:"http_port"`
+	Environment        string `yaml:"environment"`
+	DefaultProfile     string `yaml:"default_profile"`
+	PostgresDSN        string `yaml:"postgres_dsn"`
+	OperationStoreMode string `yaml:"operation_store_mode"`
+	OperationStorePath string `yaml:"operation_store_path"`
 }
 
 func NewRouter() http.Handler {
@@ -75,7 +90,11 @@ func NewRouter() http.Handler {
 }
 
 func NewRouterWithManager(manager *runtime.Manager) http.Handler {
-	tracker, err := newOperationTracker(filepath.Join("data", "service-manager-operations.json"))
+	return NewRouterWithConfig(manager, Config{})
+}
+
+func NewRouterWithConfig(manager *runtime.Manager, cfg Config) http.Handler {
+	tracker, err := newTrackerFromConfig(context.Background(), cfg)
 	if err != nil {
 		tracker = &operationTracker{current: map[string]releaseOperationStatus{}}
 	}
@@ -610,9 +629,72 @@ func newOperationTracker(path string) (*operationTracker, error) {
 	return tracker, nil
 }
 
+func newTrackerFromConfig(ctx context.Context, cfg Config) (*operationTracker, error) {
+	if cfg.OperationStoreMode == "postgres" && cfg.PostgresDSN != "" {
+		return newPostgresOperationTracker(ctx, cfg.PostgresDSN)
+	}
+	path := cfg.OperationStorePath
+	if path == "" {
+		path = filepath.Join("data", "service-manager-operations.json")
+	}
+	return newOperationTracker(path)
+}
+
+func newPostgresOperationTracker(ctx context.Context, dsn string) (*operationTracker, error) {
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err := pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+	if _, err := pool.Exec(ctx, `
+CREATE TABLE IF NOT EXISTS service_manager_operations (
+  id TEXT PRIMARY KEY,
+  operation TEXT NOT NULL,
+  product_slug TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_version_id TEXT,
+  environment TEXT,
+  operator TEXT,
+  status TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL,
+  completed_at TIMESTAMPTZ,
+  error TEXT
+)`); err != nil {
+		return nil, err
+	}
+
+	tracker := &operationTracker{
+		current: map[string]releaseOperationStatus{},
+		history: []releaseOperationStatus{},
+		pool:    pool,
+	}
+	rows, err := pool.Query(ctx, `
+SELECT id, operation, product_slug, target_type, COALESCE(target_version_id, ''), COALESCE(environment, ''), COALESCE(operator, ''), status, started_at, completed_at, COALESCE(error, '')
+FROM service_manager_operations
+ORDER BY started_at DESC
+LIMIT 20`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var op releaseOperationStatus
+		if err := rows.Scan(&op.ID, &op.Operation, &op.ProductSlug, &op.TargetType, &op.TargetVersionID, &op.Environment, &op.Operator, &op.Status, &op.StartedAt, &op.CompletedAt, &op.Error); err != nil {
+			return nil, err
+		}
+		tracker.history = append(tracker.history, op)
+	}
+	return tracker, rows.Err()
+}
+
 func (t *operationTracker) Start(key string, status releaseOperationStatus) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if status.ID == "" {
+		status.ID = fmt.Sprintf("op-%d", time.Now().UnixNano())
+	}
 	t.current[key] = status
 	t.persistLocked()
 }
@@ -620,6 +702,14 @@ func (t *operationTracker) Start(key string, status releaseOperationStatus) {
 func (t *operationTracker) Finish(key string, status releaseOperationStatus) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if existing, ok := t.current[key]; ok {
+		if status.ID == "" {
+			status.ID = existing.ID
+		}
+		if status.StartedAt.IsZero() {
+			status.StartedAt = existing.StartedAt
+		}
+	}
 	if status.CompletedAt.IsZero() {
 		status.CompletedAt = time.Now().UTC()
 	}
@@ -650,6 +740,10 @@ func (t *operationTracker) History() []releaseOperationStatus {
 }
 
 func (t *operationTracker) persistLocked() {
+	if t.pool != nil {
+		t.persistToPostgresLocked()
+		return
+	}
 	if t.path == "" {
 		return
 	}
@@ -665,6 +759,44 @@ func (t *operationTracker) persistLocked() {
 		return
 	}
 	_ = os.WriteFile(t.path, data, 0o644)
+}
+
+func (t *operationTracker) persistToPostgresLocked() {
+	if t.pool == nil || len(t.history) == 0 {
+		return
+	}
+	latest := t.history[0]
+	ctx := context.Background()
+	_, _ = t.pool.Exec(ctx, `
+INSERT INTO service_manager_operations (
+  id, operation, product_slug, target_type, target_version_id, environment, operator, status, started_at, completed_at, error
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+ON CONFLICT (id) DO UPDATE SET
+  operation = EXCLUDED.operation,
+  product_slug = EXCLUDED.product_slug,
+  target_type = EXCLUDED.target_type,
+  target_version_id = EXCLUDED.target_version_id,
+  environment = EXCLUDED.environment,
+  operator = EXCLUDED.operator,
+  status = EXCLUDED.status,
+  started_at = EXCLUDED.started_at,
+  completed_at = EXCLUDED.completed_at,
+  error = EXCLUDED.error
+`, latest.ID, latest.Operation, latest.ProductSlug, latest.TargetType, nullIfEmpty(latest.TargetVersionID), nullIfEmpty(latest.Environment), nullIfEmpty(latest.Operator), latest.Status, latest.StartedAt, nullableTime(latest.CompletedAt), nullIfEmpty(latest.Error))
+}
+
+func nullIfEmpty(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableTime(value time.Time) any {
+	if value.IsZero() {
+		return nil
+	}
+	return value
 }
 
 func findService(services []runtime.ManagedService, name string) (runtime.ManagedService, bool) {

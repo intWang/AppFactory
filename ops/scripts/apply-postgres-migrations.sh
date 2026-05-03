@@ -36,3 +36,4 @@ run_dir() {
 
 run_dir "$REPO_ROOT/services/account-service/migrations"
 run_dir "$REPO_ROOT/services/upgrade-service/migrations"
+run_dir "$REPO_ROOT/services/service-manager/migrations"

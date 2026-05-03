@@ -88,6 +88,20 @@ CREATE TABLE IF NOT EXISTS rollback_events (
   operator TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS service_manager_operations (
+  id TEXT PRIMARY KEY,
+  operation TEXT NOT NULL,
+  product_slug TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_version_id TEXT,
+  environment TEXT,
+  operator TEXT,
+  status TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL,
+  completed_at TIMESTAMPTZ,
+  error TEXT
+);
+
 INSERT INTO release_channels (id, channel_key)
 VALUES ('channel-local', 'local')
 ON CONFLICT (channel_key) DO NOTHING;

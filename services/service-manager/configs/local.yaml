@@ -2,6 +2,9 @@ service_name: service-manager
 http_port: "8080"
 environment: local
 default_profile: local
+postgres_dsn: postgres://appfactory:appfactory@127.0.0.1:5432/appfactory?sslmode=disable
+operation_store_mode: file
+operation_store_path: data/service-manager-operations.json
 services:
   - name: account-service
     command: ./bin/account-service

@@ -7,6 +7,7 @@ import (
 
 	"appfactory/service-manager/internal/httpapi"
 	"appfactory/service-manager/internal/runtime"
+	sharedconfig "appfactory/shared-go/config"
 )
 
 func main() {
@@ -18,8 +19,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cfg, err := sharedconfig.LoadYAML[httpapi.Config](configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Println("service-manager listening on :8080")
-	if err := http.ListenAndServe(":8080", httpapi.NewRouterWithManager(manager)); err != nil {
+	if err := http.ListenAndServe(":8080", httpapi.NewRouterWithConfig(manager, cfg)); err != nil {
 		log.Fatal(err)
 	}
 }

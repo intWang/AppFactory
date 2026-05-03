@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"appfactory/service-manager/internal/runtime"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestServicesEndpointReturnsRegisteredServices(t *testing.T) {
@@ -464,5 +466,67 @@ func TestReleaseOperationHistoryPersistsAcrossTrackerReload(t *testing.T) {
 	}
 	if history[0].Operation != "promote" || history[0].Status != "completed" {
 		t.Fatalf("expected completed promote operation after reload, got %+v", history[0])
+	}
+}
+
+func TestReleaseOperationHistoryPersistsAcrossPostgresTrackerReload(t *testing.T) {
+	dsn := "postgres://appfactory:appfactory@127.0.0.1:5432/appfactory?sslmode=disable"
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Skipf("postgres not available: %v", err)
+	}
+	defer pool.Close()
+	if err := pool.Ping(ctx); err != nil {
+		t.Skipf("postgres not available: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `
+CREATE TABLE IF NOT EXISTS service_manager_operations (
+  id TEXT PRIMARY KEY,
+  operation TEXT NOT NULL,
+  product_slug TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_version_id TEXT,
+  environment TEXT,
+  operator TEXT,
+  status TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL,
+  completed_at TIMESTAMPTZ,
+  error TEXT
+)`); err != nil {
+		t.Fatalf("ensure operations table: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM service_manager_operations`); err != nil {
+		t.Fatalf("clean operations table: %v", err)
+	}
+
+	tracker, err := newPostgresOperationTracker(ctx, dsn)
+	if err != nil {
+		t.Fatalf("new postgres tracker: %v", err)
+	}
+	status := releaseOperationStatus{
+		Operation:       "promote",
+		ProductSlug:     "shared-client",
+		TargetType:      "client",
+		TargetVersionID: "release-pg-1",
+		Environment:     "postgres-persist",
+		Operator:        "service-manager",
+		Status:          "completed",
+		StartedAt:       time.Now().UTC(),
+		CompletedAt:     time.Now().UTC(),
+	}
+	tracker.Finish("shared-client:client", status)
+
+	reloaded, err := newPostgresOperationTracker(ctx, dsn)
+	if err != nil {
+		t.Fatalf("reload postgres tracker: %v", err)
+	}
+	history := reloaded.History()
+	if len(history) == 0 {
+		t.Fatal("expected persisted postgres operation history after reload")
+	}
+	if history[0].Operation != "promote" || history[0].Status != "completed" {
+		t.Fatalf("expected completed promote operation after postgres reload, got %+v", history[0])
 	}
 }
