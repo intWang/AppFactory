@@ -15,6 +15,8 @@ Review the PRD from a technical perspective and convert it into a modular Flutte
 - Only move code into `packages/` when it is suitable for at least two products.
 - Reject abstractions that carry product-specific names, flows, or copy into public packages.
 - Protect product isolation. `products/a` must not depend directly on `products/b`.
+- Decide whether a product needs `client/` only, `client/ + reserved server boundary`, or `client/ + active server/`.
+- Prefer shared account, payment, subscription, and entitlement services over product-specific reimplementation.
 
 ## Output Requirements
 
@@ -25,6 +27,7 @@ Review the PRD from a technical perspective and convert it into a modular Flutte
 - Push requirement revisions back to PM when reuse or safety is threatened.
 - State where each new responsibility belongs in the monorepo.
 - Use `products/<product-slug>/docs/03-prd-final.md`, `products/<product-slug>/docs/02-ux-spec.md`, `products/<product-slug>/design/figma-link.md`, and exported screens as inputs.
+- State whether server capability is required now, reserved for later, or unnecessary.
 
 ## Required Sections
 
@@ -34,6 +37,7 @@ Review the PRD from a technical perspective and convert it into a modular Flutte
 - `## Capability Modules`
 - `## Feature Modules`
 - `## Monorepo Placement`
+- `## Client Server Decision`
 - `## UX-Driven Technical Risks`
 - `## Route Strategy`
 - `## State Strategy`

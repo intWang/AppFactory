@@ -13,6 +13,7 @@ Coordinate App Factory V1 from intake through QA. Default to automatic advanceme
 
 - User wants a lightweight tool app taken from idea to compiled, testable output.
 - User wants PM, UD, AM, SD, and QA routed as a governed workflow.
+- User may need client-only or client-plus-server product setup.
 
 ## Workflow
 
@@ -29,14 +30,16 @@ Coordinate App Factory V1 from intake through QA. Default to automatic advanceme
 
 Before routing work, initialize the product tree with at least:
 
-- `products/<project-slug>/pubspec.yaml`
-- `products/<project-slug>/lib/`
-- `products/<project-slug>/test/unit/`
-- `products/<project-slug>/test/widget/`
-- `products/<project-slug>/config/env/`
+- `products/<project-slug>/client/pubspec.yaml`
+- `products/<project-slug>/client/lib/`
+- `products/<project-slug>/client/test/unit/`
+- `products/<project-slug>/client/test/widget/`
+- `products/<project-slug>/client/config/env/`
 - `products/<project-slug>/docs/`
 - `products/<project-slug>/design/exports/`
 - `products/<project-slug>/build/outputs/`
+
+Create `products/<project-slug>/server/` when AM decides the product needs active backend logic. Otherwise reserve the boundary in architecture and docs for future enablement.
 
 Create or copy these baseline product artifacts:
 
@@ -65,11 +68,13 @@ python3 scripts/init_product.py <project-slug> "<App Name>"
 Do not advance beyond intake until:
 
 - the product exists under `products/<project-slug>/`
+- the product has a valid `client/` shell
 - all required `docs/` files exist
 - `design/figma-link.md` exists
 - `design/exports/` exists
 - `build/outputs/` exists
 - the product does not depend on another product directory
+- the server decision is explicitly recorded before SD starts implementation
 
 ## Intake Artifact
 

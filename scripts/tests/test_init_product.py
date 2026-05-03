@@ -29,28 +29,38 @@ class InitProductTests(unittest.TestCase):
       create_product_scaffold(repo_root, 'focus-timer', 'Focus Timer')
 
       product_root = repo_root / 'products/focus-timer'
-      self.assertTrue((product_root / 'pubspec.yaml').exists())
-      self.assertTrue((product_root / 'config/app.yaml').exists())
-      self.assertTrue((product_root / 'lib/app/app.dart').exists())
-      self.assertTrue((product_root / 'lib/app/bootstrap.dart').exists())
-      self.assertTrue((product_root / 'lib/features/home/home_page.dart').exists())
-      self.assertTrue((product_root / 'test/unit/bootstrap_test.dart').exists())
-      self.assertTrue((product_root / 'test/widget/app_smoke_test.dart').exists())
+      self.assertTrue((product_root / 'client/pubspec.yaml').exists())
+      self.assertTrue((product_root / 'client/config/app.yaml').exists())
+      self.assertTrue((product_root / 'client/lib/app/app.dart').exists())
+      self.assertTrue((product_root / 'client/lib/app/bootstrap.dart').exists())
+      self.assertTrue((product_root / 'client/lib/features/home/home_page.dart').exists())
+      self.assertTrue((product_root / 'client/test/unit/bootstrap_test.dart').exists())
+      self.assertTrue((product_root / 'client/test/widget/app_smoke_test.dart').exists())
       self.assertTrue((product_root / 'docs/00-intake.md').exists())
       self.assertTrue((product_root / 'docs/03-prd-final.md').exists())
       self.assertTrue((product_root / 'design/figma-link.md').exists())
       self.assertTrue((product_root / 'design/exports/.gitkeep').exists())
       self.assertTrue((product_root / 'build/outputs/.gitkeep').exists())
+      self.assertTrue((product_root / 'server/README.md').exists())
+      self.assertTrue((product_root / 'server/config/server.yaml').exists())
+      self.assertTrue((product_root / 'server/src/.gitkeep').exists())
+      self.assertTrue((product_root / 'server/tests/.gitkeep').exists())
+      self.assertTrue((product_root / 'server/deploy/.gitkeep').exists())
 
-      pubspec = (product_root / 'pubspec.yaml').read_text(encoding='utf-8')
+      pubspec = (product_root / 'client/pubspec.yaml').read_text(encoding='utf-8')
       self.assertIn('name: focus_timer', pubspec)
 
-      config = (product_root / 'config/app.yaml').read_text(encoding='utf-8')
+      config = (product_root / 'client/config/app.yaml').read_text(encoding='utf-8')
       self.assertIn('name: focus-timer', config)
+      self.assertIn('server_mode: reserved', config)
 
       prd = (product_root / 'docs/03-prd-final.md').read_text(encoding='utf-8')
       self.assertIn('Focus Timer', prd)
       self.assertIn('focus-timer', prd)
+
+      server_readme = (product_root / 'server/README.md').read_text(encoding='utf-8')
+      self.assertIn('shared account', server_readme.lower())
+      self.assertIn('pm and am', server_readme.lower())
 
   def test_refuses_to_overwrite_existing_product(self) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:

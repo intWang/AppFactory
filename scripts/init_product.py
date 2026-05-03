@@ -95,6 +95,28 @@ platforms:
   - android
   - web
 output_dir: build/outputs
+server_mode: reserved
+"""
+
+
+def build_server_readme(app_name: str) -> str:
+  return f"""# Server Boundary
+
+{app_name} reserves a product-local `server/` boundary for future backend logic.
+
+## Default Rule
+
+- Shared account, payment, subscription, and entitlement services should be reused from shared services when possible.
+- Product-specific server logic should be added only when PM and AM decide the product needs dedicated backend behavior.
+- Until then, this directory remains a reserved boundary and deployment placeholder.
+"""
+
+
+def build_server_config(product_slug: str) -> str:
+  return f"""name: {product_slug}
+mode: reserved
+shared_account_service: preferred
+shared_payment_service: preferred
 """
 
 
@@ -249,31 +271,42 @@ def create_product_scaffold(repo_root: Path, product_slug: str, app_name: str) -
   home_title = f'{app_name} Home'
 
   for relative in (
-    'lib/app',
-    'lib/features/home',
-    'lib/integrations',
-    'test/unit',
-    'test/widget',
-    'test/integration',
-    'config/env',
-    'assets',
+    'client/lib/app',
+    'client/lib/features/home',
+    'client/lib/integrations',
+    'client/test/unit',
+    'client/test/widget',
+    'client/test/integration',
+    'client/config/env',
+    'client/assets',
+    'server/src',
+    'server/include',
+    'server/tests',
+    'server/config',
+    'server/deploy',
     'build/outputs',
     'design/exports',
   ):
     (product_root / relative).mkdir(parents=True, exist_ok=True)
 
-  write_text(product_root / 'pubspec.yaml', build_pubspec(app_name, product_slug))
-  write_text(product_root / 'config/app.yaml', build_app_config(product_slug))
-  write_text(product_root / 'config/env/dev.yaml', 'flavor: dev\nlogging: verbose\n')
-  write_text(product_root / 'assets/.gitkeep', '')
+  write_text(product_root / 'client/pubspec.yaml', build_pubspec(app_name, product_slug))
+  write_text(product_root / 'client/config/app.yaml', build_app_config(product_slug))
+  write_text(product_root / 'client/config/env/dev.yaml', 'flavor: dev\nlogging: verbose\n')
+  write_text(product_root / 'client/assets/.gitkeep', '')
   write_text(product_root / 'build/outputs/.gitkeep', '')
-  write_text(product_root / 'lib/app/bootstrap.dart', build_bootstrap(app_name))
-  write_text(product_root / 'lib/app/app.dart', build_app(package_name, class_name, home_title))
-  write_text(product_root / 'lib/main.dart', build_main(package_name, class_name))
-  write_text(product_root / 'lib/features/home/home_page.dart', build_home_page(home_title))
-  write_text(product_root / 'test/unit/bootstrap_test.dart', build_bootstrap_test(package_name, app_name))
-  write_text(product_root / 'test/unit/capability_registry_test.dart', build_capability_registry_test())
-  write_text(product_root / 'test/widget/app_smoke_test.dart', build_app_smoke_test(package_name, class_name, home_title))
+  write_text(product_root / 'client/lib/app/bootstrap.dart', build_bootstrap(app_name))
+  write_text(product_root / 'client/lib/app/app.dart', build_app(package_name, class_name, home_title))
+  write_text(product_root / 'client/lib/main.dart', build_main(package_name, class_name))
+  write_text(product_root / 'client/lib/features/home/home_page.dart', build_home_page(home_title))
+  write_text(product_root / 'client/test/unit/bootstrap_test.dart', build_bootstrap_test(package_name, app_name))
+  write_text(product_root / 'client/test/unit/capability_registry_test.dart', build_capability_registry_test())
+  write_text(product_root / 'client/test/widget/app_smoke_test.dart', build_app_smoke_test(package_name, class_name, home_title))
+  write_text(product_root / 'server/README.md', build_server_readme(app_name))
+  write_text(product_root / 'server/config/server.yaml', build_server_config(product_slug))
+  write_text(product_root / 'server/src/.gitkeep', '')
+  write_text(product_root / 'server/include/.gitkeep', '')
+  write_text(product_root / 'server/tests/.gitkeep', '')
+  write_text(product_root / 'server/deploy/.gitkeep', '')
 
   copy_doc_templates(repo_root, product_root, app_name, product_slug)
   return product_root

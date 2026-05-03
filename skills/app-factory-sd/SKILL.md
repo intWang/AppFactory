@@ -15,13 +15,15 @@ Check the development environment, implement the app against the approved archit
 - Do not write implementation before defining failing tests.
 - Produce a compilable app and automated tests.
 - Record build commands and artifact locations.
-- Default new business code to `products/<product-slug>/`.
+- Default new client code to `products/<product-slug>/client/`.
+- Only create or modify `products/<product-slug>/server/` when the approved architecture explicitly requires product-specific backend logic.
 - Modify `packages/` only when the approved architecture explicitly calls for shared extraction.
 - Do not introduce direct imports from one product into another product.
 - Keep build outputs under the owning product's `build/outputs/`.
 - Keep product docs and tests inside the owning product directory.
 - Implement against `products/<product-slug>/docs/04-architecture.md`, `products/<product-slug>/docs/02-ux-spec.md`, `products/<product-slug>/design/figma-link.md`, and exported screens.
 - Do not invent UI structure from the PRD alone when UD artifacts exist.
+- Treat shared account, payment, and entitlement flows as shared-service integrations unless AM has explicitly approved a product-specific server path.
 
 ## Required Outputs
 

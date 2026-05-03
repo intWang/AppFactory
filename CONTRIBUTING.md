@@ -2,6 +2,14 @@
 
 AppFactory is a multi-product monorepo. The repository hosts multiple independent products while reusing one shared capability layer. Every contributor must preserve the boundary between public packages and product-specific code.
 
+## Client and Server Decision Rule
+
+- A product may be client-only when it is a local-first tool with no shared accounts, no centralized business rules, no paid entitlements, and no shared data.
+- AppFactory products should default to reserving server capability because most products are expected to add account, entitlement, subscription, or monetization entry points later.
+- Shared account management and payment or entitlement logic should prefer shared services instead of product-specific reimplementation.
+- Product-specific server logic is optional and must be decided by PM and AM based on the product's business requirements, data model, and security needs.
+- If a product does not need a dedicated server yet, it should still keep room in its structure for a future `server/` directory.
+
 ## Repository Layers
 
 - `packages/` stores shared capabilities, reusable UI, tooling, and public modules.
@@ -26,10 +34,7 @@ AppFactory is a multi-product monorepo. The repository hosts multiple independen
 
 Every product must include at least:
 
-- `pubspec.yaml`
-- `lib/`
-- `test/`
-- `config/`
+- `client/`
 - `docs/`
 - `design/`
 - `build/outputs/`
@@ -38,17 +43,24 @@ Recommended structure:
 
 ```text
 products/<product-slug>/
-  pubspec.yaml
-  lib/
-    app/
-    features/
-    integrations/
-  test/
-    unit/
-    widget/
-    integration/
-  config/
-  assets/
+  client/
+    pubspec.yaml
+    lib/
+      app/
+      features/
+      integrations/
+    test/
+      unit/
+      widget/
+      integration/
+    config/
+    assets/
+  server/
+    src/
+    include/
+    tests/
+    config/
+    deploy/
   docs/
   design/
     figma-link.md
@@ -60,6 +72,7 @@ products/<product-slug>/
 ## Build and Artifact Ownership
 
 - Build outputs must be written to the owning product's `build/outputs/`.
+- Client and server deploy artifacts must be written to product-local output paths and must not be mixed with other products.
 - Test reports, screenshots, and validation records must be written to the owning product's `docs/` or matching archive location.
 - Figma links, exported design screens, and UX specs must stay with the owning product.
 - Multiple products must not share a single output directory.
@@ -85,12 +98,15 @@ products/<product-slug>/
 
 - Use the final PRD plus UD deliverables as architecture inputs.
 - Decide whether new code belongs in `packages/`, `products/<product-slug>/`, or the product integration layer.
+- Decide whether the product needs a dedicated `server/` now or only a reserved server boundary for later.
+- Keep shared account, payment, and entitlement capabilities out of ad-hoc product server implementations when a shared service can own them.
 - Reject abstractions that carry product-specific semantics into public packages.
 - Protect cross-product isolation and dependency direction.
 
 ### SD
 
-- Default all new business implementation to `products/<product-slug>/`.
+- Default all client implementation to `products/<product-slug>/client/`.
+- Add `products/<product-slug>/server/` only when the approved architecture requires product-specific backend logic.
 - Change `packages/` only when the architecture explicitly calls for shared extraction.
 - Prevent cross-product imports and misplaced outputs.
 - Keep build, test, and doc artifacts inside the owning product boundary.
@@ -112,3 +128,4 @@ The following are not allowed:
 - Product-specific flows moved into `packages/`.
 - Build outputs written outside the product's own output path.
 - Product docs, design assets, or tests stored outside the product directory.
+- Product-specific account or payment services created without first checking whether they belong in a shared service.

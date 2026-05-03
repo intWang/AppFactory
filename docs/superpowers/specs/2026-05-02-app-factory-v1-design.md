@@ -12,6 +12,8 @@
 
 App Factory V1 is a skill family for turning a lightweight app idea into a compiled, testable mobile application through a governed multi-role workflow. The first version prioritizes platform capability and process reliability over broad business generation. It focuses on small, practical tool apps and uses Flutter as the default stack so shared capabilities, UI patterns, testing strategy, and project structure can be reused across projects.
 
+Most products are expected to reserve a server boundary because monetization, entitlements, account management, and future value-added services commonly require shared backend capabilities. Product-specific server logic is still optional and should be enabled only when PM and AM determine it is needed.
+
 The workflow is designed to run mostly automatically. The orchestrator skill advances the project through product, architecture, development, and QA stages, stopping only for high-risk decisions, missing inputs, environment blockers, or quality failures. Release management and agile retrospective roles are reserved as placeholders in V1 so the main pipeline can be stabilized before expanding into full store release governance and process optimization.
 
 ## 2. Goals and Non-Goals
@@ -21,6 +23,7 @@ The workflow is designed to run mostly automatically. The orchestrator skill adv
 - Accept raw user requirements and establish a project record.
 - Produce structured documents that can be handed cleanly between roles.
 - Generate a minimal Flutter app that compiles and can be tested.
+- Reserve or implement server capability when the product needs shared accounts, payment, entitlements, or secure business rules.
 - Reuse platform capabilities through pluggable shared modules.
 - Preserve clear safety boundaries around shared modules, business modules, credentials, and monetization touchpoints.
 - Archive test evidence and project memory for reuse across future projects.
@@ -43,6 +46,7 @@ The design assumption is:
 - iOS and Android are the primary delivery targets.
 - Web support is optional and should reuse the same architecture where possible.
 - Web-specific limitations must be handled through explicit capability downgrade rules.
+- Most products should assume a `client/` shell plus a possible future `server/` boundary.
 
 ## 4. Skill Family Structure
 
@@ -86,11 +90,15 @@ PM translates rough ideas into a practical, user-centered PRD for a small tool a
 
 PM does not make technical architecture decisions.
 
+PM should still flag whether the product appears likely to need shared accounts, paid features, entitlements, or centralized business rules.
+
 ### 5.2 AM
 
 AM reviews the PRD from a technical perspective and maps the product into shared capabilities and feature modules. AM chooses which public modules to connect first, splits business modules, defines the architecture, and pushes PRD revisions back to PM if the requirement is technically weak, unsafe, or harmful to reuse.
 
 AM does not directly implement product code.
+
+AM decides whether the product should stay client-only for now, reserve a future server boundary, or activate a product-specific server.
 
 ### 5.3 SD
 
@@ -199,6 +207,7 @@ Safety is a first-class design requirement.
 - Capability modules must not depend on feature modules.
 - Feature modules must consume sensitive platform services only through approved capability interfaces.
 - Payment, subscription, credentials, release accounts, keys, and store-related assets must go through explicit protected interfaces.
+- Shared account and payment capabilities should prefer shared backend services instead of product-specific duplication.
 - Web support must declare downgrade behavior for capabilities that do not translate directly from mobile platforms.
 - Shared modules must remain generic enough to be reused across apps without hidden business coupling.
 
@@ -256,6 +265,7 @@ First-pass outputs:
 - non-functional requirements
 - explicit non-goals
 - points requiring architecture review
+- likely server needs, if any
 
 Final outputs after UD review:
 
@@ -279,6 +289,7 @@ Outputs:
 - `products/<product-slug>/design/figma-link.md`
 - exported design screens under `products/<product-slug>/design/exports/`
 - PM write-back items for final PRD
+- UX implications for server-backed states such as loading, entitlement checks, or account-gated flows
 
 ### 10.4 AM Output
 
@@ -309,6 +320,7 @@ Outputs:
 - PRD revision requests
 - technical risks and tradeoffs
 - monorepo placement decisions
+- client/server decision
 
 ### 10.5 SD Output
 
@@ -368,6 +380,7 @@ Only three formal rework paths are allowed in V1:
 - UD can send work back to PM when interaction design exposes requirement ambiguity or missing product states.
 - QA can send work back to SD when implementation, build quality, or test coverage is insufficient.
 - QA can send work back to AM when failures reveal architecture-level issues that cannot be solved as isolated defects.
+- QA can send work back to AM when the client/server split is incorrect for the validated behavior.
 
 This keeps the process governed without allowing noisy circular review loops.
 
@@ -497,6 +510,11 @@ app-factory/
         exports/
       build/
         outputs/
+      server/
+        src/
+        tests/
+        config/
+        deploy/
 
   skills/
     app-factory-orchestrator/
