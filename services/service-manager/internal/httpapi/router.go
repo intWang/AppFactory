@@ -3,8 +3,11 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -49,6 +52,7 @@ type operationTracker struct {
 	mu      sync.Mutex
 	current map[string]releaseOperationStatus
 	history []releaseOperationStatus
+	path    string
 }
 
 type releasePromoteRequest struct {
@@ -71,10 +75,17 @@ func NewRouter() http.Handler {
 }
 
 func NewRouterWithManager(manager *runtime.Manager) http.Handler {
+	tracker, err := newOperationTracker(filepath.Join("data", "service-manager-operations.json"))
+	if err != nil {
+		tracker = &operationTracker{current: map[string]releaseOperationStatus{}}
+	}
+	return NewRouterWithManagerAndTracker(manager, tracker)
+}
+
+func NewRouterWithManagerAndTracker(manager *runtime.Manager, tracker *operationTracker) http.Handler {
 	mux := http.NewServeMux()
 	httpClient := &http.Client{Timeout: 2 * time.Second}
 	locker := &operationLocker{locks: map[string]bool{}}
-	tracker := &operationTracker{current: map[string]releaseOperationStatus{}}
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, sharedhealth.Snapshot{
@@ -565,10 +576,45 @@ func releaseLockKey(productSlug, targetType string) string {
 	return productSlug + ":" + targetType
 }
 
+type operationTrackerState struct {
+	Current map[string]releaseOperationStatus `json:"current"`
+	History []releaseOperationStatus          `json:"history"`
+}
+
+func newOperationTracker(path string) (*operationTracker, error) {
+	tracker := &operationTracker{
+		current: map[string]releaseOperationStatus{},
+		history: []releaseOperationStatus{},
+		path:    path,
+	}
+	if path == "" {
+		return tracker, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return tracker, nil
+		}
+		return nil, err
+	}
+	var state operationTrackerState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, err
+	}
+	if state.Current != nil {
+		tracker.current = state.Current
+	}
+	if state.History != nil {
+		tracker.history = state.History
+	}
+	return tracker, nil
+}
+
 func (t *operationTracker) Start(key string, status releaseOperationStatus) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.current[key] = status
+	t.persistLocked()
 }
 
 func (t *operationTracker) Finish(key string, status releaseOperationStatus) {
@@ -582,6 +628,7 @@ func (t *operationTracker) Finish(key string, status releaseOperationStatus) {
 	if len(t.history) > 20 {
 		t.history = t.history[:20]
 	}
+	t.persistLocked()
 }
 
 func (t *operationTracker) Current() []releaseOperationStatus {
@@ -600,6 +647,24 @@ func (t *operationTracker) History() []releaseOperationStatus {
 	ops := make([]releaseOperationStatus, len(t.history))
 	copy(ops, t.history)
 	return ops
+}
+
+func (t *operationTracker) persistLocked() {
+	if t.path == "" {
+		return
+	}
+	state := operationTrackerState{
+		Current: t.current,
+		History: t.history,
+	}
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(t.path), 0o755); err != nil {
+		return
+	}
+	_ = os.WriteFile(t.path, data, 0o644)
 }
 
 func findService(services []runtime.ManagedService, name string) (runtime.ManagedService, bool) {

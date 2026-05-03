@@ -87,6 +87,11 @@ Service-manager release control endpoints:
 Mutating release actions are guarded by an in-process lock keyed by `product_slug + target_type`.
 If another release operation is already running for the same target, the service-manager returns `409 Conflict`.
 
+Service-manager persists release operation snapshots to:
+
+- native mode: `services/service-manager/data/service-manager-operations.json`
+- compose mode: `/app/data/service-manager-operations.json` inside the `compose-service-manager-1` container
+
 ## Current Blockers
 
 - Go is installed locally at `$HOME/develop/go`.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -413,5 +414,55 @@ func TestReleaseOperationHistoryRecordsCompletedPromote(t *testing.T) {
 	}
 	if strings.Contains(historyRec.Body.String(), "\"status\":\"running\"") {
 		t.Fatalf("expected completed promote history without stale running record, got %s", historyRec.Body.String())
+	}
+}
+
+func TestReleaseOperationHistoryPersistsAcrossTrackerReload(t *testing.T) {
+	upgradeService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/deployments" && r.Method == http.MethodPost:
+			_, _ = w.Write([]byte(`{"id":"deployment-4","environment":"compose-persist","status":"deployed"}`))
+		case r.URL.Path == "/v1/switches" && r.Method == http.MethodPost:
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"target_type":"client","latest_version":"26.2.20.12"}`))
+		default:
+			t.Fatalf("unexpected call %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer upgradeService.Close()
+
+	trackerPath := filepath.Join(t.TempDir(), "operations.json")
+	tracker, err := newOperationTracker(trackerPath)
+	if err != nil {
+		t.Fatalf("new tracker: %v", err)
+	}
+	manager := runtime.NewManager([]runtime.ConfigService{
+		{Name: "upgrade-service", Command: "sleep 30", WorkDir: ".", Address: upgradeService.URL},
+	}, "local")
+	router := NewRouterWithManagerAndTracker(manager, tracker)
+
+	promoteReq := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/releases/promote",
+		bytes.NewBufferString(`{"product_slug":"shared-client","target_type":"client","target_version_id":"release-4","environment":"compose-persist","operator":"service-manager"}`),
+	)
+	promoteReq.Header.Set("Content-Type", "application/json")
+	promoteRec := httptest.NewRecorder()
+	router.ServeHTTP(promoteRec, promoteReq)
+
+	if promoteRec.Code != http.StatusCreated {
+		t.Fatalf("expected promote status 201, got %d body=%s", promoteRec.Code, promoteRec.Body.String())
+	}
+
+	reloadedTracker, err := newOperationTracker(trackerPath)
+	if err != nil {
+		t.Fatalf("reload tracker: %v", err)
+	}
+	history := reloadedTracker.History()
+	if len(history) == 0 {
+		t.Fatal("expected persisted operation history after reload")
+	}
+	if history[0].Operation != "promote" || history[0].Status != "completed" {
+		t.Fatalf("expected completed promote operation after reload, got %+v", history[0])
 	}
 }
