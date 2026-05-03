@@ -1,0 +1,6 @@
+name: example-tool-app
+platforms:
+  - ios
+  - android
+  - web
+output_dir: build/outputs

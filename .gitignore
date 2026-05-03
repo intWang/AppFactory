@@ -1,8 +1,15 @@
 .DS_Store
 
-templates/flutter_tool_app/.dart_tool/
-templates/flutter_tool_app/build/
-templates/flutter_tool_app/.packages
-templates/flutter_tool_app/.flutter-plugins
-templates/flutter_tool_app/.flutter-plugins-dependencies
-templates/flutter_tool_app/.metadata
+**/.dart_tool/
+**/.packages
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.metadata
+**/build/**
+!products/**/build/
+!products/**/build/outputs/
+!products/**/build/outputs/.gitkeep
+!templates/flutter_product_shell/build/
+!templates/flutter_product_shell/build/outputs/
+!templates/flutter_product_shell/build/outputs/.gitkeep
+!templates/flutter_tool_app/build/

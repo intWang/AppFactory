@@ -1,0 +1,29 @@
+name: example_tool_app
+description: Example AppFactory product shell in the multi-product monorepo.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  app_factory_account:
+    path: ../../packages/app_factory_account
+  app_factory_foundation:
+    path: ../../packages/app_factory_foundation
+  app_factory_growth:
+    path: ../../packages/app_factory_growth
+  app_factory_ui:
+    path: ../../packages/app_factory_ui
+  app_factory_tooling:
+    path: ../../packages/app_factory_tooling
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

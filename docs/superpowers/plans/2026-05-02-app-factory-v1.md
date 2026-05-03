@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first working version of the App Factory skill family for Flutter-based tool apps, including the orchestrator, core role skills, shared templates, a reusable Flutter base app, and one end-to-end example project path.
+**Goal:** Build the first working version of the App Factory skill family for Flutter-based tool apps, including the orchestrator, core role skills, shared templates, shared packages, a reusable Flutter base app, and one end-to-end example product path.
 
-**Architecture:** The implementation is split into two tracks that meet in a single example flow: a skill-and-docs backbone and a Flutter platform backbone. The skills create and govern project artifacts, while the Flutter template provides the reusable shell, capability registration pattern, and test baseline those skills target.
+**Architecture:** The implementation is split into two tracks that meet in a single example flow: a skill-and-docs backbone and a Flutter platform backbone. The skills create and govern product-local artifacts, while shared packages and Flutter templates provide the reusable shell, capability registration pattern, and test baseline those products target.
 
 **Tech Stack:** Markdown skills, Markdown templates, Flutter, Dart, `flutter_test`, platform toolchains for iOS/Android/Web, shell utilities
+
+**Historical Note:** This plan records the original V1 bootstrap slice before the monorepo layout was upgraded to `packages/ + products/`. Current repository structure and contribution rules take precedence over any older single-template example paths below.
 
 ---
 

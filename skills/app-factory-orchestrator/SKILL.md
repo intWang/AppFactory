@@ -16,16 +16,16 @@ Coordinate App Factory V1 from intake through QA. Default to automatic advanceme
 
 ## Workflow
 
-1. Create `docs/projects/<project-slug>/00-intake.md`.
-2. Route to PM for `01-prd.md`.
-3. Route to AM for `02-architecture.md`.
-4. Route to SD for `03-dev-plan.md` and implementation.
-5. Route to QA for `04-test-cases.md` and `05-test-report.md`.
+1. Create `products/<project-slug>/docs/00-intake.md`.
+2. Route to PM for `products/<project-slug>/docs/01-prd.md`.
+3. Route to AM for `products/<project-slug>/docs/02-architecture.md`.
+4. Route to SD for `products/<project-slug>/docs/03-dev-plan.md` and implementation.
+5. Route to QA for `products/<project-slug>/docs/04-test-cases.md` and `products/<project-slug>/docs/05-test-report.md`.
 6. Stop only for blocked or rework conditions.
 
 ## Intake Artifact
 
-Write `00-intake.md` with:
+Write `products/<project-slug>/docs/00-intake.md` with:
 
 - `## Project Name`
 - `## Project Slug`
@@ -57,3 +57,4 @@ Write `00-intake.md` with:
 - Credentials, money, signing, account, or release risk
 - Development environment blocker
 - Failed QA gate
+- Product docs or outputs are written outside the owning `products/<project-slug>/` boundary

@@ -16,10 +16,10 @@ Flutter and platform toolchains are available. Verified with `flutter --version`
 Write failing tests for bootstrap, capability resolution, and widget rendering before implementation.
 
 ## Build Commands
-`cd templates/flutter_tool_app && flutter test`
+`cd products/example-tool-app && flutter test`
 
 ## Artifact Output
-Flutter template project under `templates/flutter_tool_app/`.
+Product-local app shell under `products/example-tool-app/` with outputs under `products/example-tool-app/build/outputs/`.
 
 ## Known Blockers
 No active environment blockers.

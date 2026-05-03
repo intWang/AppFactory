@@ -420,6 +420,30 @@ The orchestrator must be able to resume from the last recorded project state and
 
 ```text
 app-factory/
+  packages/
+    app_factory_foundation/
+    app_factory_account/
+    app_factory_growth/
+    app_factory_ui/
+    app_factory_tooling/
+
+  products/
+    <product-slug>/
+      pubspec.yaml
+      lib/
+        app/
+        features/
+        integrations/
+      test/
+        unit/
+        widget/
+        integration/
+      config/
+      assets/
+      docs/
+      build/
+        outputs/
+
   skills/
     app-factory-orchestrator/
       SKILL.md
@@ -438,17 +462,16 @@ app-factory/
 
   templates/
     flutter_tool_app/
+    flutter_product_shell/
     docs/
       prd.template.md
       add.template.md
       test-cases.template.md
       test-report.template.md
       memory.template.md
-
   docs/
     specs/
     plans/
-    projects/
 
   memory/
     factory-memory.md
@@ -465,23 +488,24 @@ Every project should use a stable `project-slug`.
 
 Example:
 
-- `docs/projects/2026-05-02-pomodoro/`
+- `products/pomodoro/`
+- `products/pomodoro/docs/`
 - `memory/project-memory/2026-05-02-pomodoro.md`
 - `archives/test-reports/2026-05-02-pomodoro/`
 - `archives/build-artifacts/2026-05-02-pomodoro/`
 
 ## 16. Standard Project Artifacts
 
-Each project directory should contain:
+Each product directory should contain:
 
-- `00-intake.md`
-- `01-prd.md`
-- `02-architecture.md`
-- `03-dev-plan.md`
-- `04-test-cases.md`
-- `05-test-report.md`
-- `06-release-gate.md`
-- `07-retro-input.md`
+- `products/<product-slug>/docs/00-intake.md`
+- `products/<product-slug>/docs/01-prd.md`
+- `products/<product-slug>/docs/02-architecture.md`
+- `products/<product-slug>/docs/03-dev-plan.md`
+- `products/<product-slug>/docs/04-test-cases.md`
+- `products/<product-slug>/docs/05-test-report.md`
+- `products/<product-slug>/docs/06-release-gate.md`
+- `products/<product-slug>/docs/07-retro-input.md`
 
 These files provide deterministic handoff points between skills and future automation.
 
@@ -587,6 +611,9 @@ This spec is intentionally biased toward platform capability and process governa
 The first implementation slice should include:
 
 - the seven skill directories
+- shared packages under `packages/`
+- product-local docs under `products/<product-slug>/docs/`
 - shared document templates
 - a reusable Flutter tool-app template
-- one example project at `docs/projects/example-tool-app/`
+- a reusable Flutter product-shell template
+- one example project at `products/example-tool-app/`
