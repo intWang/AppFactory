@@ -7,7 +7,9 @@ services:
     command: ""
     workdir: /app
     address: http://account-service:8081
+    container_name: compose-account-service-1
   - name: upgrade-service
     command: ""
     workdir: /app
     address: http://upgrade-service:8082
+    container_name: compose-upgrade-service-1

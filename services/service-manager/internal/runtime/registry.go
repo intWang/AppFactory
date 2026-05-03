@@ -21,10 +21,11 @@ type Config struct {
 }
 
 type ConfigService struct {
-	Name    string `yaml:"name"`
-	Command string `yaml:"command"`
-	WorkDir string `yaml:"workdir"`
-	Address string `yaml:"address"`
+	Name          string `yaml:"name"`
+	Command       string `yaml:"command"`
+	WorkDir       string `yaml:"workdir"`
+	Address       string `yaml:"address"`
+	ContainerName string `yaml:"container_name"`
 }
 
 type Registry struct {
@@ -32,15 +33,16 @@ type Registry struct {
 }
 
 type ManagedService struct {
-	Name      string    `json:"name"`
-	Command   string    `json:"command"`
-	WorkDir   string    `json:"workdir"`
-	Address   string    `json:"address"`
-	Status    string    `json:"status"`
-	Profile   string    `json:"profile"`
-	PID       int       `json:"pid"`
-	StartedAt time.Time `json:"started_at"`
-	LastError string    `json:"last_error,omitempty"`
+	Name          string    `json:"name"`
+	Command       string    `json:"command"`
+	WorkDir       string    `json:"workdir"`
+	Address       string    `json:"address"`
+	ContainerName string    `json:"container_name,omitempty"`
+	Status        string    `json:"status"`
+	Profile       string    `json:"profile"`
+	PID           int       `json:"pid"`
+	StartedAt     time.Time `json:"started_at"`
+	LastError     string    `json:"last_error,omitempty"`
 }
 
 type managedProcess struct {
@@ -50,10 +52,11 @@ type managedProcess struct {
 }
 
 type Manager struct {
-	profile   string
-	mu        sync.Mutex
-	services  map[string]*ManagedService
-	processes map[string]*managedProcess
+	profile       string
+	mu            sync.Mutex
+	services      map[string]*ManagedService
+	processes     map[string]*managedProcess
+	commandRunner func(name string, args ...string) error
 }
 
 func NewRegistry() *Registry {
@@ -90,18 +93,20 @@ func NewManager(configs []ConfigService, profile string) *Manager {
 	for _, service := range configs {
 		copied := service
 		services[service.Name] = &ManagedService{
-			Name:    copied.Name,
-			Command: copied.Command,
-			WorkDir: copied.WorkDir,
-			Address: copied.Address,
-			Status:  "registered",
-			Profile: profile,
+			Name:          copied.Name,
+			Command:       copied.Command,
+			WorkDir:       copied.WorkDir,
+			Address:       copied.Address,
+			ContainerName: copied.ContainerName,
+			Status:        "registered",
+			Profile:       profile,
 		}
 	}
 	return &Manager{
-		profile:   profile,
-		services:  services,
-		processes: map[string]*managedProcess{},
+		profile:       profile,
+		services:      services,
+		processes:     map[string]*managedProcess{},
+		commandRunner: runCommand,
 	}
 }
 
@@ -131,6 +136,25 @@ func (m *Manager) Start(name string) (ManagedService, error) {
 		return ManagedService{}, fmt.Errorf("unknown service: %s", name)
 	}
 	if process, exists := m.processes[name]; exists && process.cmd.Process != nil {
+		result := *service
+		m.mu.Unlock()
+		return result, nil
+	}
+	if service.ContainerName != "" {
+		containerName := service.ContainerName
+		m.mu.Unlock()
+		if err := m.commandRunner("docker", "start", containerName); err != nil {
+			m.mu.Lock()
+			service.LastError = err.Error()
+			service.Status = "error"
+			result := *service
+			m.mu.Unlock()
+			return result, err
+		}
+		m.mu.Lock()
+		service.Status = "running"
+		service.LastError = ""
+		service.StartedAt = time.Now().UTC()
 		result := *service
 		m.mu.Unlock()
 		return result, nil
@@ -174,6 +198,24 @@ func (m *Manager) Stop(name string) (ManagedService, error) {
 		return ManagedService{}, fmt.Errorf("unknown service: %s", name)
 	}
 	process, exists := m.processes[name]
+	if service.ContainerName != "" {
+		containerName := service.ContainerName
+		m.mu.Unlock()
+		if err := m.commandRunner("docker", "stop", containerName); err != nil {
+			m.mu.Lock()
+			service.LastError = err.Error()
+			service.Status = "error"
+			result := *service
+			m.mu.Unlock()
+			return result, err
+		}
+		m.mu.Lock()
+		service.Status = "stopped"
+		service.LastError = ""
+		result := *service
+		m.mu.Unlock()
+		return result, nil
+	}
 	if !exists || process.cmd.Process == nil {
 		service.Status = "stopped"
 		result := *service
@@ -201,6 +243,32 @@ func (m *Manager) Stop(name string) (ManagedService, error) {
 }
 
 func (m *Manager) Restart(name string) (ManagedService, error) {
+	m.mu.Lock()
+	service, ok := m.services[name]
+	if !ok {
+		m.mu.Unlock()
+		return ManagedService{}, fmt.Errorf("unknown service: %s", name)
+	}
+	if service.ContainerName != "" {
+		containerName := service.ContainerName
+		m.mu.Unlock()
+		if err := m.commandRunner("docker", "restart", containerName); err != nil {
+			m.mu.Lock()
+			service.LastError = err.Error()
+			service.Status = "error"
+			result := *service
+			m.mu.Unlock()
+			return result, err
+		}
+		m.mu.Lock()
+		service.Status = "running"
+		service.LastError = ""
+		service.StartedAt = time.Now().UTC()
+		result := *service
+		m.mu.Unlock()
+		return result, nil
+	}
+	m.mu.Unlock()
 	if _, err := m.Stop(name); err != nil {
 		return ManagedService{}, err
 	}
@@ -257,4 +325,9 @@ func isInterrupted(err error) bool {
 		return false
 	}
 	return err.Error() == "signal: interrupt"
+}
+
+func runCommand(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	return cmd.Run()
 }

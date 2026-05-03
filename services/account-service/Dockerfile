@@ -1,6 +1,7 @@
 FROM golang:1.23 AS build
 ENV GOFLAGS=-mod=vendor
 ENV GOWORK=off
+ENV CGO_ENABLED=0
 WORKDIR /workspace
 COPY . .
 WORKDIR /workspace/account-service

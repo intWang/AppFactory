@@ -92,3 +92,60 @@ func TestManagerRestartReturnsFreshProcessMetadata(t *testing.T) {
 
 	_, _ = manager.Stop("sleepy")
 }
+
+func TestManagerControlsDockerManagedService(t *testing.T) {
+	manager := NewManager([]ConfigService{
+		{
+			Name:          "account-service",
+			Address:       "http://account-service:8081",
+			ContainerName: "compose-account-service-1",
+		},
+	}, "compose")
+
+	var calls [][]string
+	manager.commandRunner = func(name string, args ...string) error {
+		call := append([]string{name}, args...)
+		calls = append(calls, call)
+		return nil
+	}
+
+	started, err := manager.Start("account-service")
+	if err != nil {
+		t.Fatalf("expected docker-managed service to start, got error: %v", err)
+	}
+	if started.Status != "running" {
+		t.Fatalf("expected running status, got %+v", started)
+	}
+
+	restarted, err := manager.Restart("account-service")
+	if err != nil {
+		t.Fatalf("expected docker-managed service to restart, got error: %v", err)
+	}
+	if restarted.Status != "running" {
+		t.Fatalf("expected running status after restart, got %+v", restarted)
+	}
+
+	stopped, err := manager.Stop("account-service")
+	if err != nil {
+		t.Fatalf("expected docker-managed service to stop, got error: %v", err)
+	}
+	if stopped.Status != "stopped" {
+		t.Fatalf("expected stopped status, got %+v", stopped)
+	}
+
+	expected := [][]string{
+		{"docker", "start", "compose-account-service-1"},
+		{"docker", "restart", "compose-account-service-1"},
+		{"docker", "stop", "compose-account-service-1"},
+	}
+	if len(calls) != len(expected) {
+		t.Fatalf("expected %d docker calls, got %d", len(expected), len(calls))
+	}
+	for i := range expected {
+		for j := range expected[i] {
+			if calls[i][j] != expected[i][j] {
+				t.Fatalf("unexpected docker call %d: got %v want %v", i, calls[i], expected[i])
+			}
+		}
+	}
+}
